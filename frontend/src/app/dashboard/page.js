@@ -3,28 +3,15 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
-import {
-  getUserCourses,
-  refreshUserCourses,
-  updateCourseStatus,
-  ensureUserHasCourses,
-  getTwoStageData
-} from '../../services/api';
+import { getTwoStageData } from '../../services/api';
 
 export default function Dashboard() {
-  const [courses, setCourses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [updating, setUpdating] = useState(false);
-  const [ensuring, setEnsuring] = useState(false);
   const [error, setError] = useState('');
+  const [refreshingCache, setRefreshingCache] = useState(false);
   const [twoStageData, setTwoStageData] = useState({
-    stage1: null,
-    stage2: null,
     loading: false,
     error: null
   });
-  const [refreshingCache, setRefreshingCache] = useState(false);
 
   // Use refs to track if data has been cached
   const stage1CachedRef = useRef(false);
@@ -45,15 +32,12 @@ export default function Dashboard() {
         setTwoStageData(prev => ({ ...prev, loading: true, error: null }));
 
         // First fetch with force-cache to ensure it's cached in the browser
-        // This will cache both stage 1 and stage 2 data
         console.log('Fetching two-stage data with caching...');
         const data = await getTwoStageData({ cache: 'force-cache' });
 
         // Set the data and mark both stages as cached
         setTwoStageData(prev => ({
           ...prev,
-          stage1: data,
-          stage2: data,
           loading: false
         }));
 
@@ -61,12 +45,6 @@ export default function Dashboard() {
         stage2CachedRef.current = true;
 
         console.log('Two-stage data cached successfully:', data);
-
-        // If we have courses in the data, use them
-        if (data.courses && data.courses.length > 0) {
-          setCourses(data.courses);
-          setLoading(false);
-        }
       } catch (err) {
         console.error('Failed to fetch two-stage data:', err);
         setTwoStageData(prev => ({
@@ -74,54 +52,6 @@ export default function Dashboard() {
           loading: false,
           error: err.message || 'Failed to fetch two-stage data'
         }));
-
-        // Fall back to regular course fetching if two-stage fails
-        fetchCourses();
-      }
-    };
-
-    // Fetch user's courses (fallback method)
-    const fetchCourses = async () => {
-      try {
-        setLoading(true);
-        const result = await getUserCourses();
-
-        // If courses were found, set them
-        if (result.courses && result.courses.length > 0) {
-          setCourses(result.courses);
-          return true;
-        } else if (result.coursesFetched) {
-          // If courses were just fetched but none found, show empty state
-          setCourses([]);
-          return true;
-        }
-
-        // If no courses found, try to fetch them automatically
-        try {
-          setEnsuring(true);
-          const ensureResult = await ensureUserHasCourses();
-
-          // Get the courses again after ensuring
-          const updatedResult = await getUserCourses();
-          setCourses(updatedResult.courses || []);
-
-          if (ensureResult.courseCount > 0 && !ensureResult.coursesExisted) {
-            setError(`Successfully fetched ${ensureResult.courseCount} courses (${ensureResult.presentCourses} current, ${ensureResult.pastCourses} past)`);
-          }
-
-          return true;
-        } catch (ensureErr) {
-          console.error('Error ensuring courses:', ensureErr);
-          setCourses([]);
-          return false;
-        } finally {
-          setEnsuring(false);
-        }
-      } catch (err) {
-        setError('Failed to load courses: ' + (err.message || 'Unknown error'));
-        return false;
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -135,52 +65,6 @@ export default function Dashboard() {
       router.push('/login');
     } catch (err) {
       setError('Failed to log out: ' + (err.message || 'Unknown error'));
-    }
-  };
-
-  const handleRefreshCourses = async () => {
-    try {
-      setRefreshing(true);
-      setError('');
-      await refreshUserCourses(); // Remove unused result variable
-      const updatedResult = await getUserCourses();
-      setCourses(updatedResult.courses || []);
-    } catch (err) {
-      setError('Failed to refresh courses: ' + (err.message || 'Unknown error'));
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  const handleUpdateStatus = async () => {
-    try {
-      setUpdating(true);
-      setError('');
-      await updateCourseStatus(); // Remove unused result variable
-      const updatedResult = await getUserCourses();
-      setCourses(updatedResult.courses || []);
-    } catch (err) {
-      setError('Failed to update course status: ' + (err.message || 'Unknown error'));
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const handleEnsureCourses = async () => {
-    try {
-      setEnsuring(true);
-      setError('');
-      const result = await ensureUserHasCourses();
-      const updatedResult = await getUserCourses();
-      setCourses(updatedResult.courses || []);
-
-      if (!result.coursesExisted) {
-        setError(`Successfully fetched ${result.courseCount} courses (${result.presentCourses} current, ${result.pastCourses} past)`);
-      }
-    } catch (err) {
-      setError('Failed to ensure courses: ' + (err.message || 'Unknown error'));
-    } finally {
-      setEnsuring(false);
     }
   };
 
@@ -204,8 +88,6 @@ export default function Dashboard() {
       // Update the data and mark both stages as cached
       setTwoStageData(prev => ({
         ...prev,
-        stage1: data,
-        stage2: data,
         loading: false
       }));
 
@@ -214,11 +96,6 @@ export default function Dashboard() {
       stage2CachedRef.current = true;
 
       console.log('Cache refreshed successfully:', data);
-
-      // Update courses if available
-      if (data.courses && data.courses.length > 0) {
-        setCourses(data.courses);
-      }
 
       // Show success message
       setError('Cache refreshed successfully!');
@@ -282,13 +159,13 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Two-Stage Data Status */}
+        {/* Refresh Cache Button */}
         <div className="mb-4 bg-white p-4 shadow sm:rounded-lg">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-semibold text-gray-900">Two-Stage Data Status</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Cache Control</h2>
             <button
               onClick={handleRefreshCache}
-              disabled={refreshingCache || twoStageData.loading || updating || refreshing || ensuring}
+              disabled={refreshingCache || twoStageData.loading}
               className="rounded-md bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 disabled:opacity-50 flex items-center"
             >
               {refreshingCache ? (
@@ -309,96 +186,9 @@ export default function Dashboard() {
               )}
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className={`p-3 rounded-md ${stage1CachedRef.current ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200'}`}>
-              <div className="flex items-center">
-                <div className={`w-3 h-3 rounded-full mr-2 ${stage1CachedRef.current ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                <span className="text-sm font-medium">Stage 1 Data</span>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                {stage1CachedRef.current ? 'Cached in browser' : 'Not cached'}
-              </p>
-            </div>
-            <div className={`p-3 rounded-md ${stage2CachedRef.current ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200'}`}>
-              <div className="flex items-center">
-                <div className={`w-3 h-3 rounded-full mr-2 ${stage2CachedRef.current ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                <span className="text-sm font-medium">Stage 2 Data</span>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                {stage2CachedRef.current ? 'Cached in browser' : 'Not cached'}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 shadow sm:rounded-lg">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Your Courses</h2>
-            <div className="flex space-x-2">
-              <button
-                onClick={handleUpdateStatus}
-                disabled={updating || refreshing || ensuring || twoStageData.loading}
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-              >
-                {updating ? 'Updating...' : 'Fix Course Status'}
-              </button>
-              <button
-                onClick={handleRefreshCourses}
-                disabled={refreshing || updating || ensuring || twoStageData.loading}
-                className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
-              >
-                {refreshing ? 'Refreshing...' : 'Refresh Courses'}
-              </button>
-              <button
-                onClick={handleEnsureCourses}
-                disabled={ensuring || refreshing || updating || twoStageData.loading}
-                className="rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50"
-              >
-                {ensuring ? 'Fetching...' : 'Fetch Missing Courses'}
-              </button>
-            </div>
-          </div>
-
-          {loading || twoStageData.loading ? (
-            <div className="mt-4 text-center">
-              {twoStageData.loading ? 'Loading two-stage data...' : 'Loading courses...'}
-            </div>
-          ) : courses.length > 0 ? (
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {courses.map((course) => (
-                <div
-                  key={course.id}
-                  className={`rounded-lg border p-4 shadow-sm ${
-                    course.status === 'present' ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'
-                  }`}
-                >
-                  <h3 className="text-lg font-medium text-gray-900">{course.name}</h3>
-                  <p className="text-sm text-gray-500">{course.courseCode}</p>
-                  <p className="text-sm text-gray-500">{course.termName}</p>
-                  <div className="mt-2">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        course.status === 'present'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {course.status === 'present' ? 'Current' : 'Past'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-4 text-center">
-              <p className="text-gray-500 mb-4">No courses found.</p>
-              <button
-                onClick={handleEnsureCourses}
-                disabled={ensuring}
-                className="rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50"
-              >
-                {ensuring ? 'Fetching Courses...' : 'Fetch Courses from Canvas'}
-              </button>
+          {twoStageData.loading && (
+            <div className="mt-4 text-center text-sm text-gray-500">
+              Loading data...
             </div>
           )}
         </div>
