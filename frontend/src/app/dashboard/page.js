@@ -141,7 +141,7 @@ export default function Dashboard() {
     try {
       setRefreshing(true);
       setError('');
-      const result = await refreshUserCourses();
+      await refreshUserCourses(); // Remove unused result variable
       const updatedResult = await getUserCourses();
       setCourses(updatedResult.courses || []);
     } catch (err) {
@@ -155,7 +155,7 @@ export default function Dashboard() {
     try {
       setUpdating(true);
       setError('');
-      const result = await updateCourseStatus();
+      await updateCourseStatus(); // Remove unused result variable
       const updatedResult = await getUserCourses();
       setCourses(updatedResult.courses || []);
     } catch (err) {

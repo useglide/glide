@@ -1,4 +1,4 @@
-const { fetchAllPages } = require('../../backend/utils/canvasAPI');
+const { fetchAllPages } = require('../utils/canvasAPI');
 
 /**
  * Service for Canvas API operations
