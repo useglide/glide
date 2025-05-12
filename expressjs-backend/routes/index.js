@@ -8,6 +8,7 @@ const dashboardRoutes = require('./dashboardRoutes');
 const springCoursesRoutes = require('./springCoursesRoutes');
 const assignmentGradesRoutes = require('./assignmentGradesRoutes');
 const twoStageRoutes = require('./twoStageRoutes');
+const detailedCourseRoutes = require('./detailedCourseRoutes');
 
 const router = express.Router();
 
@@ -21,5 +22,6 @@ router.use('/', dashboardRoutes);
 router.use('/', springCoursesRoutes);
 router.use('/', assignmentGradesRoutes);
 router.use('/', twoStageRoutes);
+router.use('/', detailedCourseRoutes);
 
 module.exports = router;

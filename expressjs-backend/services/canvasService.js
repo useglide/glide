@@ -196,6 +196,51 @@ const canvasService = {
 
     // Filter courses by IDs from Firestore
     return allCourses.filter(course => courseIds.includes(course.id));
+  },
+
+  /**
+   * Get all courses (current and past) from Firestore and Canvas
+   * @param {Object} options - Additional options
+   * @returns {Promise<Array>} List of all courses
+   */
+  getAllCourses: async (options = {}) => {
+    const {
+      includeTerms = true,
+      includeTeachers = true,
+      includeTotalScores = true,
+      uid,
+      canvasUrl,
+      canvasApiKey
+    } = options;
+
+    if (!uid) {
+      throw new Error('User ID is required to get all courses');
+    }
+
+    // Get user's courses from Firestore (both current and past)
+    const { db } = require('../config/firebase');
+    const coursesSnapshot = await db.collection('users').doc(uid).collection('courses')
+      .get();
+
+    if (coursesSnapshot.empty) {
+      console.warn('No courses found for user in Firestore');
+      return [];
+    }
+
+    // Get course IDs from Firestore
+    const courseIds = coursesSnapshot.docs.map(doc => parseInt(doc.id));
+
+    // Get all courses from Canvas
+    const allCourses = await canvasService.getCourses({
+      includeTerms,
+      includeTeachers,
+      includeTotalScores,
+      canvasUrl,
+      canvasApiKey
+    });
+
+    // Filter courses by IDs from Firestore
+    return allCourses.filter(course => courseIds.includes(course.id));
   }
 };
 

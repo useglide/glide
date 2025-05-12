@@ -181,3 +181,44 @@ export const getTwoStageData = async (options = {}) => {
     throw error;
   }
 };
+
+/**
+ * Get detailed course data (all courses with assignments)
+ * This should be called after the two-stage load is cached
+ * @param {Object} options - Options for the request
+ * @returns {Promise<Object>} Detailed course data
+ */
+export const getDetailedCourseData = async (options = {}) => {
+  const { cache = 'force-cache', bypassCache = false } = options;
+
+  try {
+    const token = await getIdToken();
+
+    // Add a cache buster parameter if bypassCache is true
+    const url = joinUrl(API_URL, 'courses/detailed');
+    const urlWithCacheBuster = bypassCache
+      ? `${url}?_=${Date.now()}`
+      : url;
+
+    // Use the cache option to enable browser caching
+    const response = await fetch(urlWithCacheBuster, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      cache: bypassCache ? 'no-store' : cache,
+      // Add next.js specific cache control
+      next: bypassCache ? { revalidate: 0 } : undefined
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Detailed course data fetch failed:', error);
+    throw error;
+  }
+};

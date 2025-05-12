@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
-import { getTwoStageData } from '../../services/api';
+import { getTwoStageData, getDetailedCourseData } from '../../services/api';
 
 export default function Dashboard() {
   const [error, setError] = useState('');
@@ -13,9 +13,15 @@ export default function Dashboard() {
     error: null
   });
 
+  const [detailedCourseData, setDetailedCourseData] = useState({
+    loading: false,
+    error: null
+  });
+
   // Use refs to track if data has been cached
   const stage1CachedRef = useRef(false);
   const stage2CachedRef = useRef(false);
+  const detailedDataCachedRef = useRef(false);
 
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -45,12 +51,46 @@ export default function Dashboard() {
         stage2CachedRef.current = true;
 
         console.log('Two-stage data cached successfully:', data);
+
+        // Now fetch detailed course data after two-stage data is cached
+        await fetchDetailedCourseData();
       } catch (err) {
         console.error('Failed to fetch two-stage data:', err);
         setTwoStageData(prev => ({
           ...prev,
           loading: false,
           error: err.message || 'Failed to fetch two-stage data'
+        }));
+      }
+    };
+
+    const fetchDetailedCourseData = async () => {
+      try {
+        // Only proceed if two-stage data is cached
+        if (!stage1CachedRef.current || !stage2CachedRef.current) {
+          console.log('Two-stage data not cached yet, skipping detailed course data fetch');
+          return;
+        }
+
+        setDetailedCourseData(prev => ({ ...prev, loading: true, error: null }));
+
+        console.log('Fetching detailed course data...');
+        const data = await getDetailedCourseData({ cache: 'force-cache' });
+
+        setDetailedCourseData(prev => ({
+          ...prev,
+          loading: false
+        }));
+
+        detailedDataCachedRef.current = true;
+
+        console.log('Detailed course data cached successfully:', data);
+      } catch (err) {
+        console.error('Failed to fetch detailed course data:', err);
+        setDetailedCourseData(prev => ({
+          ...prev,
+          loading: false,
+          error: err.message || 'Failed to fetch detailed course data'
         }));
       }
     };
@@ -76,9 +116,11 @@ export default function Dashboard() {
       // Reset cache status
       stage1CachedRef.current = false;
       stage2CachedRef.current = false;
+      detailedDataCachedRef.current = false;
 
       // Set loading state
       setTwoStageData(prev => ({ ...prev, loading: true, error: null }));
+      setDetailedCourseData(prev => ({ ...prev, loading: false, error: null }));
 
       console.log('Refreshing cache by bypassing browser cache...');
 
@@ -95,7 +137,16 @@ export default function Dashboard() {
       stage1CachedRef.current = true;
       stage2CachedRef.current = true;
 
-      console.log('Cache refreshed successfully:', data);
+      console.log('Two-stage cache refreshed successfully:', data);
+
+      // Now fetch detailed course data
+      console.log('Refreshing detailed course data...');
+      const detailedData = await getDetailedCourseData({ bypassCache: true });
+
+      // Mark detailed data as cached
+      detailedDataCachedRef.current = true;
+
+      console.log('Detailed course data refreshed successfully:', detailedData);
 
       // Show success message
       setError('Cache refreshed successfully!');
@@ -107,6 +158,11 @@ export default function Dashboard() {
     } catch (err) {
       console.error('Failed to refresh cache:', err);
       setTwoStageData(prev => ({
+        ...prev,
+        loading: false,
+        error: err.message || 'Failed to refresh cache'
+      }));
+      setDetailedCourseData(prev => ({
         ...prev,
         loading: false,
         error: err.message || 'Failed to refresh cache'
@@ -188,7 +244,19 @@ export default function Dashboard() {
           </div>
           {twoStageData.loading && (
             <div className="mt-4 text-center text-sm text-gray-500">
-              Loading data...
+              Loading two-stage data...
+            </div>
+          )}
+
+          {detailedCourseData.loading && (
+            <div className="mt-4 text-center text-sm text-gray-500">
+              Loading detailed course data...
+            </div>
+          )}
+
+          {detailedCourseData.error && (
+            <div className="mt-4 text-center text-sm text-red-500">
+              Error loading detailed course data: {detailedCourseData.error}
             </div>
           )}
         </div>
