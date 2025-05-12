@@ -2,8 +2,17 @@
 
 import { auth } from '../config/firebase';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-const AUTH_URL = process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace('/api', '/auth') : 'http://localhost:3001/auth';
+// Ensure no trailing slashes in API URLs
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace(/\/$/, '');
+const AUTH_URL = process.env.NEXT_PUBLIC_API_URL
+  ? process.env.NEXT_PUBLIC_API_URL.replace('/api', '/auth').replace(/\/$/, '')
+  : 'http://localhost:3001/auth';
+
+// Helper function to join URL paths without double slashes
+const joinUrl = (base, path) => {
+  if (!path) return base;
+  return `${base}/${path.replace(/^\//, '')}`;
+};
 
 /**
  * Get the current user's ID token for authentication
@@ -55,7 +64,7 @@ const fetchWithAuth = async (url, options = {}) => {
  */
 export const registerUser = async (userData) => {
   try {
-    const response = await fetch(`${AUTH_URL}/register`, {
+    const response = await fetch(joinUrl(AUTH_URL, 'register'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -81,7 +90,7 @@ export const registerUser = async (userData) => {
  * @returns {Promise<Object>} Result
  */
 export const storeCanvasCredentials = async (credentials) => {
-  return fetchWithAuth(`${AUTH_URL}/canvas-credentials`, {
+  return fetchWithAuth(joinUrl(AUTH_URL, 'canvas-credentials'), {
     method: 'POST',
     body: JSON.stringify(credentials)
   });
@@ -92,7 +101,7 @@ export const storeCanvasCredentials = async (credentials) => {
  * @returns {Promise<Object>} Canvas credentials
  */
 export const getCanvasCredentials = async () => {
-  return fetchWithAuth(`${AUTH_URL}/canvas-credentials`);
+  return fetchWithAuth(joinUrl(AUTH_URL, 'canvas-credentials'));
 };
 
 /**
@@ -100,7 +109,7 @@ export const getCanvasCredentials = async () => {
  * @returns {Promise<Object>} User's courses
  */
 export const getUserCourses = async () => {
-  return fetchWithAuth(`${AUTH_URL}/courses`);
+  return fetchWithAuth(joinUrl(AUTH_URL, 'courses'));
 };
 
 /**
@@ -108,7 +117,7 @@ export const getUserCourses = async () => {
  * @returns {Promise<Object>} Result
  */
 export const refreshUserCourses = async () => {
-  return fetchWithAuth(`${AUTH_URL}/courses/refresh`, {
+  return fetchWithAuth(joinUrl(AUTH_URL, 'courses/refresh'), {
     method: 'POST'
   });
 };
@@ -118,7 +127,7 @@ export const refreshUserCourses = async () => {
  * @returns {Promise<Object>} Result
  */
 export const updateCourseStatus = async () => {
-  return fetchWithAuth(`${AUTH_URL}/courses/update-status`, {
+  return fetchWithAuth(joinUrl(AUTH_URL, 'courses/update-status'), {
     method: 'POST'
   });
 };
@@ -128,7 +137,7 @@ export const updateCourseStatus = async () => {
  * @returns {Promise<Object>} Result
  */
 export const ensureUserHasCourses = async () => {
-  return fetchWithAuth(`${AUTH_URL}/courses/ensure`, {
+  return fetchWithAuth(joinUrl(AUTH_URL, 'courses/ensure'), {
     method: 'POST'
   });
 };
@@ -145,7 +154,7 @@ export const getTwoStageData = async (options = {}) => {
     const token = await getIdToken();
 
     // Use the cache option to enable browser caching
-    const response = await fetch(`${API_URL}/two-stage-data`, {
+    const response = await fetch(joinUrl(API_URL, 'two-stage-data'), {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
