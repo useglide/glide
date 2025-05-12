@@ -1,5 +1,8 @@
 # Environment variables
 .env
+.env.production
+.env.example
+
 
 # Dependencies
 node_modules/

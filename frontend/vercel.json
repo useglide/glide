@@ -6,16 +6,16 @@
   "outputDirectory": ".next",
   "regions": ["sfo1"],
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://glide-v3-backend.vercel.app/api"
+    "NEXT_PUBLIC_API_URL": "https://glide-jet.vercel.app/api"
   },
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://glide-v3-backend.vercel.app/api/:path*"
+      "destination": "https://glide-jet.vercel.app/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://glide-v3-backend.vercel.app/auth/:path*"
+      "destination": "https://glide-jet.vercel.app/auth/:path*"
     }
   ]
 }
