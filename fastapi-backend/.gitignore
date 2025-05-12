@@ -1,0 +1,10 @@
+.env
+.env.production
+.env.example
+
+pycache/
+.vscode/
+.idea/
+*/__pycache__/
+*/.vscode/
+*/.idea/
