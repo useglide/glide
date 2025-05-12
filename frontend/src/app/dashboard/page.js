@@ -24,6 +24,7 @@ export default function Dashboard() {
     loading: false,
     error: null
   });
+  const [refreshingCache, setRefreshingCache] = useState(false);
 
   // Use refs to track if data has been cached
   const stage1CachedRef = useRef(false);
@@ -183,6 +184,62 @@ export default function Dashboard() {
     }
   };
 
+  const handleRefreshCache = async () => {
+    try {
+      setRefreshingCache(true);
+      setError('');
+
+      // Reset cache status
+      stage1CachedRef.current = false;
+      stage2CachedRef.current = false;
+
+      // Set loading state
+      setTwoStageData(prev => ({ ...prev, loading: true, error: null }));
+
+      console.log('Refreshing cache by bypassing browser cache...');
+
+      // Fetch data with cache bypassing
+      const data = await getTwoStageData({ bypassCache: true });
+
+      // Update the data and mark both stages as cached
+      setTwoStageData(prev => ({
+        ...prev,
+        stage1: data,
+        stage2: data,
+        loading: false
+      }));
+
+      // Mark as cached
+      stage1CachedRef.current = true;
+      stage2CachedRef.current = true;
+
+      console.log('Cache refreshed successfully:', data);
+
+      // Update courses if available
+      if (data.courses && data.courses.length > 0) {
+        setCourses(data.courses);
+      }
+
+      // Show success message
+      setError('Cache refreshed successfully!');
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setError('');
+      }, 3000);
+    } catch (err) {
+      console.error('Failed to refresh cache:', err);
+      setTwoStageData(prev => ({
+        ...prev,
+        loading: false,
+        error: err.message || 'Failed to refresh cache'
+      }));
+      setError('Failed to refresh cache: ' + (err.message || 'Unknown error'));
+    } finally {
+      setRefreshingCache(false);
+    }
+  };
+
   if (!user) {
     return null; // Will redirect in useEffect
   }
@@ -205,7 +262,16 @@ export default function Dashboard() {
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {error && (
-          <div className="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-700">
+          <div className={`mb-4 rounded-md p-4 text-sm ${
+            error.includes('successfully')
+              ? 'bg-green-50 text-green-700'
+              : 'bg-red-50 text-red-700'
+          }`}>
+            {error.includes('successfully') && (
+              <svg className="inline-block mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            )}
             {error}
           </div>
         )}
@@ -218,7 +284,31 @@ export default function Dashboard() {
 
         {/* Two-Stage Data Status */}
         <div className="mb-4 bg-white p-4 shadow sm:rounded-lg">
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Two-Stage Data Status</h2>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-lg font-semibold text-gray-900">Two-Stage Data Status</h2>
+            <button
+              onClick={handleRefreshCache}
+              disabled={refreshingCache || twoStageData.loading || updating || refreshing || ensuring}
+              className="rounded-md bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 disabled:opacity-50 flex items-center"
+            >
+              {refreshingCache ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Refreshing...
+                </>
+              ) : (
+                <>
+                  <svg className="mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh Cache
+                </>
+              )}
+            </button>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className={`p-3 rounded-md ${stage1CachedRef.current ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200'}`}>
               <div className="flex items-center">

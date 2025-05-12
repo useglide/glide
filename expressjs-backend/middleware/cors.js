@@ -7,7 +7,8 @@ const corsMiddleware = cors({
     'https://glide-v3.vercel.app',
     'https://glide-v3-git-main.vercel.app',
     'https://glide-v3-*.vercel.app',
-    'https://glide-53ye.vercel.app'
+    'https://glide-53ye.vercel.app',
+    'https://glide-jet.vercel.app'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],

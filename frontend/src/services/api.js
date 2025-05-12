@@ -148,18 +148,26 @@ export const ensureUserHasCourses = async () => {
  * @returns {Promise<Object>} Two-stage data
  */
 export const getTwoStageData = async (options = {}) => {
-  const { cache = 'force-cache' } = options;
+  const { cache = 'force-cache', bypassCache = false } = options;
 
   try {
     const token = await getIdToken();
 
+    // Add a cache buster parameter if bypassCache is true
+    const url = joinUrl(API_URL, 'two-stage-data');
+    const urlWithCacheBuster = bypassCache
+      ? `${url}?_=${Date.now()}`
+      : url;
+
     // Use the cache option to enable browser caching
-    const response = await fetch(joinUrl(API_URL, 'two-stage-data'), {
+    const response = await fetch(urlWithCacheBuster, {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      cache: cache
+      cache: bypassCache ? 'no-store' : cache,
+      // Add next.js specific cache control
+      next: bypassCache ? { revalidate: 0 } : undefined
     });
 
     if (!response.ok) {
