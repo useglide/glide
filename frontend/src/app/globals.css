@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --text-primary: #171717;
+  --text-secondary: #4b5563;
+  --text-tertiary: #9ca3af;
+  --text-light: #ffffff;
+  --nav-bg: #f9fafb;
+  --nav-border: #e5e7eb;
+  --nav-hover: #f3f4f6;
+  --blue-accent: #3b82f6;
+  --blue-accent-hover: #2563eb;
+  --red-accent: #ef4444;
+  --green-accent: #10b981;
+  --card-text: #ffffff;
+  --card-text-secondary: rgba(255, 255, 255, 0.8);
+  --course-blue: #3b82f6;
+  --course-purple: #8b5cf6;
+  --course-green: #10b981;
+  --course-amber: #f59e0b;
+  --course-pink: #ec4899;
+  --course-indigo: #6366f1;
+  --why-glide-bg: #3b82f6;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    --text-primary: #ededed;
+    --text-secondary: #a1a1aa;
+    --text-tertiary: #71717a;
+    --text-light: #ffffff;
+    --nav-bg: #18181b;
+    --nav-border: #27272a;
+    --nav-hover: #27272a;
+    --blue-accent: #3b82f6;
+    --blue-accent-hover: #2563eb;
+    --red-accent: #ef4444;
+    --green-accent: #10b981;
+    --card-text: #ffffff;
+    --card-text-secondary: rgba(255, 255, 255, 0.8);
+    --why-glide-bg: #2563eb;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
