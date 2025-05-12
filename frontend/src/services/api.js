@@ -3,7 +3,7 @@
 import { auth } from '../config/firebase';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-const AUTH_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/auth';
+const AUTH_URL = process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace('/api', '/auth') : 'http://localhost:3001/auth';
 
 /**
  * Get the current user's ID token for authentication

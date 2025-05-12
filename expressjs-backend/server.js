@@ -18,11 +18,18 @@ app.use('/auth', authRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date() });
+  res.json({ status: 'ok', timestamp: new Date(), environment: process.env.NODE_ENV });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Firebase connected: ${!!db}`);
-});
+// Vercel serverless function handler
+if (process.env.VERCEL) {
+  console.log('Running on Vercel');
+  // Export the Express app as a serverless function
+  module.exports = app;
+} else {
+  // Start server for local development
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Firebase connected: ${!!db}`);
+  });
+}
