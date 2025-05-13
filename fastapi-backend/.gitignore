@@ -8,3 +8,5 @@ pycache/
 */__pycache__/
 */.vscode/
 */.idea/
+/__pycache__/
+fastapi-backend/__pycache__
