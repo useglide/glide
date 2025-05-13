@@ -6,7 +6,8 @@
   "outputDirectory": ".next",
   "regions": ["sfo1"],
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://glide-jet.vercel.app/api"
+    "NEXT_PUBLIC_API_URL": "https://glide-jet.vercel.app/api",
+    "NEXT_PUBLIC_FASTAPI_URL": "https://glide-express.js-backend.vercel.app/api"
   },
   "rewrites": [
     {
@@ -16,6 +17,10 @@
     {
       "source": "/auth/:path*",
       "destination": "https://glide-jet.vercel.app/auth/:path*"
+    },
+    {
+      "source": "/fastapi/:path*",
+      "destination": "https://glide-express.js-backend.vercel.app/api/:path*"
     }
   ]
 }

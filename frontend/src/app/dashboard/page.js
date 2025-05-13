@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import { getTwoStageData, getDetailedCourseData } from '../../services/api';
+import ChatSidebar from '../../components/ChatSidebar';
 
 export default function Dashboard() {
   const [error, setError] = useState('');
@@ -261,6 +262,9 @@ export default function Dashboard() {
           )}
         </div>
       </main>
+
+      {/* Chat Sidebar */}
+      <ChatSidebar />
     </div>
   );
 }

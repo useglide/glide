@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     # Frontend URL
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
+    # Google API settings
+    GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
+
     model_config = {
         "case_sensitive": True
     }
