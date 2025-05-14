@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 import SmoothScroll from '@/components/SmoothScroll';
+import { CommandMenuTrigger } from '@/components/CommandMenuTrigger';
 
 const GlideLandingPage = () => {
   const router = useRouter();
@@ -39,6 +40,7 @@ const GlideLandingPage = () => {
                 {/* <a href="#features" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Features</a> */}
                 {/* <a href="#why-glide" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Why Glide</a> */}
                 {/* <a href="#pricing" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Pricing</a> */}
+                <CommandMenuTrigger />
                 <ThemeToggle />
                 <button
                   onClick={handleSignIn}

@@ -4,18 +4,21 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import { getTwoStageData, getDetailedCourseData } from '../../services/api';
+import { CurrentCourses } from '../../components/CurrentCourses';
 
 export default function Dashboard() {
   const [error, setError] = useState('');
   const [refreshingCache, setRefreshingCache] = useState(false);
   const [twoStageData, setTwoStageData] = useState({
     loading: false,
-    error: null
+    error: null,
+    data: null
   });
 
   const [detailedCourseData, setDetailedCourseData] = useState({
     loading: false,
-    error: null
+    error: null,
+    data: null
   });
 
   // Use refs to track if data has been cached
@@ -44,7 +47,8 @@ export default function Dashboard() {
         // Set the data and mark both stages as cached
         setTwoStageData(prev => ({
           ...prev,
-          loading: false
+          loading: false,
+          data: data
         }));
 
         stage1CachedRef.current = true;
@@ -79,7 +83,8 @@ export default function Dashboard() {
 
         setDetailedCourseData(prev => ({
           ...prev,
-          loading: false
+          loading: false,
+          data: data
         }));
 
         detailedDataCachedRef.current = true;
@@ -130,7 +135,8 @@ export default function Dashboard() {
       // Update the data and mark both stages as cached
       setTwoStageData(prev => ({
         ...prev,
-        loading: false
+        loading: false,
+        data: data
       }));
 
       // Mark as cached
@@ -260,6 +266,12 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
+        {/* Current Courses Section */}
+        <CurrentCourses
+          courses={detailedCourseData.data?.courses || []}
+          loading={detailedCourseData.loading}
+        />
       </main>
     </div>
   );
