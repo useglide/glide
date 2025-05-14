@@ -2,9 +2,17 @@
 .env.production
 .env.example
 
-pycache/
+__pycache__/
 .vscode/
 .idea/
 */__pycache__/
 */.vscode/
 */.idea/
+/__pycache__/
+**/__pycache__/
+fastapi-backend/__pycache__/
+/app/api/endpoints/__pycache__/
+/app/core/__pycache__/
+/app/services/__pycache__/
+/app/models/__pycache__/
+/app/__pycache__/
