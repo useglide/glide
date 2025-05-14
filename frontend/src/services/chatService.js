@@ -35,8 +35,8 @@ export const sendChatMessage = async (message, conversationId = null) => {
       conversation_id: conversationId
     };
 
-    // Send the request to the Genoa chat API
-    const response = await fetch(`${GENOA_API_URL}/chat/simple`, {
+    // Send the request to the Express agent endpoint
+    const response = await fetch(`${GENOA_API_URL}/v1/express-agent/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -47,8 +47,24 @@ export const sendChatMessage = async (message, conversationId = null) => {
 
     // Check if the response is OK
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `Chat API error: ${response.status}`);
+      // If the Express agent endpoint fails, fall back to the simple chat endpoint
+      console.warn('Express agent endpoint failed, falling back to simple chat');
+
+      const fallbackResponse = await fetch(`${GENOA_API_URL}/chat/simple`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!fallbackResponse.ok) {
+        const errorData = await fallbackResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || `Chat API error: ${fallbackResponse.status}`);
+      }
+
+      return await fallbackResponse.json();
     }
 
     // Return the response data

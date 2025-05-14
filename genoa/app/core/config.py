@@ -21,9 +21,20 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "Canvas LMS API"
 
+    # Firebase settings
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: Optional[str] = None
+    NEXT_PUBLIC_FIREBASE_DATABASE_URL: Optional[str] = None
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: Optional[str] = None
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: Optional[str] = None
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: Optional[str] = None
+    NEXT_PUBLIC_FIREBASE_APP_ID: Optional[str] = None
+    NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: Optional[str] = None
+    FIREBASE_SERVICE_ACCOUNT_KEY: Optional[str] = None
+
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"  # Ignore extra fields in the environment
 
 # Create a global settings object
 settings = Settings()

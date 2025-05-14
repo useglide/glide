@@ -16,7 +16,7 @@ import { sendChatMessage, clearChatHistory } from '@/services/chatService';
  */
 export function ChatPanel({ isOpen, onClose, className }) {
   const [messages, setMessages] = useState([
-    { content: 'Hi there! How can I help you with your Canvas courses today?', isUser: false }
+    { content: 'Hi there! I\'m your Canvas Assistant. I can help you with information about your courses, assignments, grades, and more. I have access to your Canvas data through the Express.js cache, so I can quickly answer questions about your academic information. How can I help you today?', isUser: false }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState(null);
@@ -69,10 +69,10 @@ export function ChatPanel({ isOpen, onClose, className }) {
         setIsLoading(true);
         await clearChatHistory(conversationId);
       }
-      
+
       // Reset messages and keep the welcome message
       setMessages([
-        { content: 'Hi there! How can I help you with your Canvas courses today?', isUser: false }
+        { content: 'Hi there! I\'m your Canvas Assistant. I can help you with information about your courses, assignments, grades, and more. I have access to your Canvas data through the Express.js cache, so I can quickly answer questions about your academic information. How can I help you today?', isUser: false }
       ]);
     } catch (error) {
       console.error('Failed to clear chat history:', error);
@@ -91,7 +91,10 @@ export function ChatPanel({ isOpen, onClose, className }) {
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b px-4 py-3">
-        <h2 className="text-lg font-semibold">Canvas Assistant</h2>
+        <div>
+          <h2 className="text-lg font-semibold">Canvas Assistant</h2>
+          <p className="text-xs text-muted-foreground">Powered by Express.js Cache</p>
+        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleClearChat}

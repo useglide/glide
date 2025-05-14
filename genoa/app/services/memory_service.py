@@ -3,8 +3,8 @@ Memory service for storing and retrieving conversation history.
 This service provides a way to persist conversation memory between sessions.
 """
 from typing import Dict, Optional, List
-from langchain.memory import ConversationBufferMemory
-from langchain.schema.messages import BaseMessage
+from langchain_core.memory import ConversationBufferMemory
+from langchain_core.messages import BaseMessage
 import uuid
 import time
 
