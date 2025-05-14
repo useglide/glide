@@ -6,7 +6,8 @@
   "outputDirectory": ".next",
   "regions": ["sfo1"],
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://glide-jet.vercel.app/api"
+    "NEXT_PUBLIC_API_URL": "https://glide-jet.vercel.app/api",
+    "NEXT_PUBLIC_GENOA_API_URL": "https://glide-jet.vercel.app/api"
   },
   "rewrites": [
     {

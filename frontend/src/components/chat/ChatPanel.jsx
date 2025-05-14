@@ -1,0 +1,136 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { XIcon, TrashIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { ChatMessage } from './ChatMessage';
+import { ChatInput } from './ChatInput';
+import { sendChatMessage, clearChatHistory } from '@/services/chatService';
+
+/**
+ * A panel that displays a chat interface
+ * @param {Object} props - Component props
+ * @param {boolean} props.isOpen - Whether the panel is open
+ * @param {Function} props.onClose - Function to call when the panel is closed
+ * @param {string} props.className - Additional CSS classes
+ */
+export function ChatPanel({ isOpen, onClose, className }) {
+  const [messages, setMessages] = useState([
+    { content: 'Hi there! How can I help you with your Canvas courses today?', isUser: false }
+  ]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [conversationId, setConversationId] = useState(null);
+  const messagesEndRef = useRef(null);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Load conversation ID from localStorage
+  useEffect(() => {
+    const savedConversationId = localStorage.getItem('chatConversationId');
+    if (savedConversationId) {
+      setConversationId(savedConversationId);
+    }
+  }, []);
+
+  const handleSendMessage = async (content) => {
+    try {
+      // Add user message to the chat
+      setMessages((prev) => [...prev, { content, isUser: true }]);
+      setIsLoading(true);
+
+      // Send message to API
+      const response = await sendChatMessage(content, conversationId);
+
+      // Add bot response to the chat
+      setMessages((prev) => [...prev, { content: response.response, isUser: false }]);
+
+      // Save conversation ID if it's new
+      if (!conversationId && response.conversation_id) {
+        setConversationId(response.conversation_id);
+        localStorage.setItem('chatConversationId', response.conversation_id);
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      setMessages((prev) => [
+        ...prev,
+        { content: 'Sorry, I encountered an error. Please try again.', isUser: false }
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleClearChat = async () => {
+    try {
+      if (conversationId) {
+        setIsLoading(true);
+        await clearChatHistory(conversationId);
+      }
+      
+      // Reset messages and keep the welcome message
+      setMessages([
+        { content: 'Hi there! How can I help you with your Canvas courses today?', isUser: false }
+      ]);
+    } catch (error) {
+      console.error('Failed to clear chat history:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div
+      className={cn(
+        'fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l bg-background shadow-xl transition-transform duration-300 ease-in-out sm:max-w-md',
+        isOpen ? 'translate-x-0' : 'translate-x-full',
+        className
+      )}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <h2 className="text-lg font-semibold">Canvas Assistant</h2>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleClearChat}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+            aria-label="Clear chat"
+          >
+            <TrashIcon className="h-5 w-5" />
+          </button>
+          <button
+            onClick={onClose}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+            aria-label="Close chat"
+          >
+            <XIcon className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {messages.map((message, index) => (
+          <ChatMessage
+            key={index}
+            content={message.content}
+            isUser={message.isUser}
+          />
+        ))}
+        {isLoading && (
+          <div className="flex items-center gap-2 py-2">
+            <div className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground"></div>
+            <div className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground" style={{ animationDelay: '0.2s' }}></div>
+            <div className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground" style={{ animationDelay: '0.4s' }}></div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <ChatInput onSend={handleSendMessage} disabled={isLoading} />
+    </div>
+  );
+}
