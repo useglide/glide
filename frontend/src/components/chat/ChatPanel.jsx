@@ -16,7 +16,7 @@ import { sendChatMessage, clearChatHistory } from '@/services/chatService';
  */
 export function ChatPanel({ isOpen, onClose, className }) {
   const [messages, setMessages] = useState([
-    { content: 'Hi there! I\'m your Canvas Assistant. I can help you with information about your courses, assignments, grades, and more. I have access to your Canvas data through the Express.js cache, so I can quickly answer questions about your academic information. How can I help you today?', isUser: false }
+    { content: 'Hi there! I\'m Genoa, your AI Assistant powered by Google\'s Gemini Pro. How can I help you today?', isUser: false }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState(null);
@@ -36,11 +36,11 @@ export function ChatPanel({ isOpen, onClose, className }) {
   }, []);
 
   const handleSendMessage = async (content) => {
-    try {
-      // Add user message to the chat
-      setMessages((prev) => [...prev, { content, isUser: true }]);
-      setIsLoading(true);
+    // Add user message to the chat
+    setMessages((prev) => [...prev, { content, isUser: true }]);
+    setIsLoading(true);
 
+    try {
       // Send message to API
       const response = await sendChatMessage(content, conversationId);
 
@@ -48,7 +48,7 @@ export function ChatPanel({ isOpen, onClose, className }) {
       setMessages((prev) => [...prev, { content: response.response, isUser: false }]);
 
       // Save conversation ID if it's new
-      if (!conversationId && response.conversation_id) {
+      if (!conversationId && response.conversation_id && response.conversation_id !== "error") {
         setConversationId(response.conversation_id);
         localStorage.setItem('chatConversationId', response.conversation_id);
       }
@@ -64,19 +64,19 @@ export function ChatPanel({ isOpen, onClose, className }) {
   };
 
   const handleClearChat = async () => {
+    setIsLoading(true);
+
     try {
       if (conversationId) {
-        setIsLoading(true);
         await clearChatHistory(conversationId);
       }
-
-      // Reset messages and keep the welcome message
-      setMessages([
-        { content: 'Hi there! I\'m your Canvas Assistant. I can help you with information about your courses, assignments, grades, and more. I have access to your Canvas data through the Express.js cache, so I can quickly answer questions about your academic information. How can I help you today?', isUser: false }
-      ]);
     } catch (error) {
       console.error('Failed to clear chat history:', error);
     } finally {
+      // Reset messages and keep the welcome message regardless of API success/failure
+      setMessages([
+        { content: 'Hi there! I\'m Genoa, your AI Assistant powered by Google\'s Gemini Pro. How can I help you today?', isUser: false }
+      ]);
       setIsLoading(false);
     }
   };
@@ -92,8 +92,8 @@ export function ChatPanel({ isOpen, onClose, className }) {
       {/* Header */}
       <div className="flex items-center justify-between border-b px-4 py-3">
         <div>
-          <h2 className="text-lg font-semibold">Canvas Assistant</h2>
-          <p className="text-xs text-muted-foreground">Powered by Express.js Cache</p>
+          <h2 className="text-lg font-semibold">Genoa AI Assistant</h2>
+          <p className="text-xs text-muted-foreground">Powered by Gemini Pro</p>
         </div>
         <div className="flex items-center gap-2">
           <button
