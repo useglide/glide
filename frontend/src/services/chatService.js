@@ -75,37 +75,34 @@ export const sendChatMessage = async (message, conversationId = null) => {
 
 /**
  * Get the chat history for a conversation
+ * @param {string} conversationId - The conversation ID
  * @returns {Promise<Object>} The chat history
  */
-export const getChatHistory = async () => {
+export const getChatHistory = async (conversationId) => {
   try {
-    // Note: The new Genoa AI Agent doesn't have memory endpoints yet
-    // Return an empty history for now
-    console.warn('Chat history functionality not implemented in the new Genoa AI Agent');
-    return { messages: [] };
+    // Check if we have a conversation ID
+    if (!conversationId) {
+      console.warn('No conversation ID provided for chat history');
+      return { messages: [] };
+    }
 
-    /* Commented out until memory endpoints are implemented
-    // Get the user's ID token for authentication
-    const token = await getIdToken();
-
-    // Send the request to the Genoa memory API
-    const response = await fetch(`${GENOA_API_URL}/memory/${conversationId}`, {
+    // Send the request to the memory API
+    const response = await fetch(`${GENOA_API_URL}/v1/memory/${conversationId}`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Content-Type': 'application/json'
       }
     });
 
     // Check if the response is OK
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `Memory API error: ${response.status}`);
+      console.error('Memory API error:', errorData.detail || response.status);
+      return { messages: [] };
     }
 
     // Return the response data
     return await response.json();
-    */
   } catch (error) {
     console.error('Memory API request failed:', error);
     // Return empty history on error
@@ -115,37 +112,34 @@ export const getChatHistory = async () => {
 
 /**
  * Clear the chat history for a conversation
+ * @param {string} conversationId - The conversation ID
  * @returns {Promise<Object>} The response from the API
  */
-export const clearChatHistory = async () => {
+export const clearChatHistory = async (conversationId) => {
   try {
-    // Note: The new Genoa AI Agent doesn't have memory endpoints yet
-    // Return a success response for now
-    console.warn('Clear chat history functionality not implemented in the new Genoa AI Agent');
-    return { success: true };
+    // Check if we have a conversation ID
+    if (!conversationId) {
+      console.warn('No conversation ID provided for clearing chat history');
+      return { success: true };
+    }
 
-    /* Commented out until memory endpoints are implemented
-    // Get the user's ID token for authentication
-    const token = await getIdToken();
-
-    // Send the request to the Genoa memory API
-    const response = await fetch(`${GENOA_API_URL}/memory/${conversationId}/clear`, {
+    // Send the request to the memory API
+    const response = await fetch(`${GENOA_API_URL}/v1/memory/${conversationId}/clear`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Content-Type': 'application/json'
       }
     });
 
     // Check if the response is OK
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `Memory API error: ${response.status}`);
+      console.error('Memory API error:', errorData.detail || response.status);
+      return { success: false };
     }
 
     // Return the response data
     return await response.json();
-    */
   } catch (error) {
     console.error('Memory API request failed:', error);
     // Return success on error to avoid breaking the UI

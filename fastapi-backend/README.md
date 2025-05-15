@@ -52,6 +52,8 @@ The API will be available at http://localhost:8000.
 
 - `GET /api/v1/health` - Health check endpoint
 - `POST /api/v1/chat` - Chat endpoint
+- `GET /api/v1/memory/{conversation_id}` - Get conversation history
+- `POST /api/v1/memory/{conversation_id}/clear` - Clear conversation history
 
 ## Deployment to Vercel
 
@@ -113,3 +115,38 @@ vercel
 ```
 
 The `conversation_id` is used to maintain context between messages. If not provided, a new conversation will be created.
+
+### Memory Endpoints
+
+#### Get Conversation History
+
+**Endpoint**: `GET /api/v1/memory/{conversation_id}`
+
+**Response**:
+```json
+{
+  "conversation_id": "conversation-id",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hello, how can you help me with Glide?"
+    },
+    {
+      "role": "assistant",
+      "content": "Hello! I'm Glide Assistant. I can help you with information about your courses, assignments, and grades in Canvas. How can I assist you today?"
+    }
+  ]
+}
+```
+
+#### Clear Conversation History
+
+**Endpoint**: `POST /api/v1/memory/{conversation_id}/clear`
+
+**Response**:
+```json
+{
+  "conversation_id": "conversation-id",
+  "success": true
+}
+```

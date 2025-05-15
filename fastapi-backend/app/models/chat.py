@@ -19,3 +19,20 @@ class ChatResponse(BaseModel):
     """Response model for chat endpoint."""
     response: str = Field(..., description="The AI's response to the user's message")
     conversation_id: str = Field(..., description="The conversation ID for future reference")
+
+
+class MemoryRequest(BaseModel):
+    """Request model for memory operations."""
+    conversation_id: str = Field(..., description="The conversation ID to retrieve or clear memory for")
+
+
+class MemoryResponse(BaseModel):
+    """Response model for memory retrieval."""
+    conversation_id: str = Field(..., description="The conversation ID")
+    messages: List[ChatMessage] = Field(..., description="The conversation history")
+
+
+class ClearMemoryResponse(BaseModel):
+    """Response model for clearing memory."""
+    conversation_id: str = Field(..., description="The conversation ID that was cleared")
+    success: bool = Field(..., description="Whether the operation was successful")

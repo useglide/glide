@@ -5,7 +5,7 @@ import { XIcon, TrashIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
-import { sendChatMessage, clearChatHistory } from '@/services/chatService';
+import { sendChatMessage, clearChatHistory, getChatHistory } from '@/services/chatService';
 
 /**
  * A panel that displays a chat interface
@@ -27,11 +27,40 @@ export function ChatPanel({ isOpen, onClose, className }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Load conversation ID from localStorage
+  // Load conversation ID from localStorage and fetch chat history
   useEffect(() => {
     const savedConversationId = localStorage.getItem('chatConversationId');
     if (savedConversationId) {
       setConversationId(savedConversationId);
+
+      // Fetch chat history for this conversation
+      const loadChatHistory = async () => {
+        setIsLoading(true);
+        try {
+          const history = await getChatHistory(savedConversationId);
+
+          if (history && history.messages && history.messages.length > 0) {
+            // Convert the messages to the format expected by the component
+            const formattedMessages = [
+              // Keep the welcome message
+              { content: 'Hi there! I\'m Genoa, your AI Assistant powered by Google\'s Gemini Pro. How can I help you today?', isUser: false },
+              // Add the history messages
+              ...history.messages.map(msg => ({
+                content: msg.content,
+                isUser: msg.role === 'user'
+              }))
+            ];
+
+            setMessages(formattedMessages);
+          }
+        } catch (error) {
+          console.error('Failed to load chat history:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      loadChatHistory();
     }
   }, []);
 
@@ -68,7 +97,13 @@ export function ChatPanel({ isOpen, onClose, className }) {
 
     try {
       if (conversationId) {
-        await clearChatHistory(conversationId);
+        const result = await clearChatHistory(conversationId);
+
+        if (result && result.success) {
+          console.log('Chat history cleared successfully');
+        } else {
+          console.warn('Failed to clear chat history on the server');
+        }
       }
     } catch (error) {
       console.error('Failed to clear chat history:', error);
