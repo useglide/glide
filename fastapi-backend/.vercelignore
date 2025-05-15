@@ -1,0 +1,57 @@
+# Ignore development and test files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Ignore version control
+.git
+.gitignore
+
+# Ignore editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore test files
+tests/
+test_*.py
+*_test.py
+
+# Ignore documentation
+docs/
+*.md
+!README.md
+
+# Ignore cache
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Ignore environment files (but keep .env for Vercel)
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Ignore logs
+logs/
+*.log
