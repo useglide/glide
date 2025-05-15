@@ -3,7 +3,6 @@
 import { auth } from '../config/firebase';
 
 // Get the API URL from environment variables
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace(/\/$/, '');
 const GENOA_API_URL = process.env.NEXT_PUBLIC_GENOA_API_URL || 'http://localhost:8000/api';
 
 /**
@@ -26,8 +25,8 @@ const getIdToken = async () => {
  */
 export const sendChatMessage = async (message, conversationId = null) => {
   try {
-    // Get the user's ID token for authentication
-    const token = await getIdToken();
+    // Get the user's ID token for authentication (for future use with auth)
+    await getIdToken();
 
     // Prepare the request body
     const requestBody = {
@@ -76,10 +75,9 @@ export const sendChatMessage = async (message, conversationId = null) => {
 
 /**
  * Get the chat history for a conversation
- * @param {string} conversationId - The conversation ID
  * @returns {Promise<Object>} The chat history
  */
-export const getChatHistory = async (conversationId) => {
+export const getChatHistory = async () => {
   try {
     // Note: The new Genoa AI Agent doesn't have memory endpoints yet
     // Return an empty history for now
@@ -117,10 +115,9 @@ export const getChatHistory = async (conversationId) => {
 
 /**
  * Clear the chat history for a conversation
- * @param {string} conversationId - The conversation ID
  * @returns {Promise<Object>} The response from the API
  */
-export const clearChatHistory = async (conversationId) => {
+export const clearChatHistory = async () => {
   try {
     // Note: The new Genoa AI Agent doesn't have memory endpoints yet
     // Return a success response for now
