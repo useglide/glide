@@ -25,8 +25,13 @@ const getIdToken = async () => {
  */
 export const sendChatMessage = async (message, conversationId = null) => {
   try {
-    // Get the user's ID token for authentication (for future use with auth)
-    await getIdToken();
+    // Get the user's ID token for authentication
+    let token = null;
+    try {
+      token = await getIdToken();
+    } catch (error) {
+      console.warn('User not authenticated, proceeding without token');
+    }
 
     // Prepare the request body
     const requestBody = {
@@ -34,13 +39,20 @@ export const sendChatMessage = async (message, conversationId = null) => {
       conversation_id: conversationId
     };
 
-    // Send the request to the new Gemini-powered chat endpoint
-    // Note: Not sending auth token to FastAPI backend as it doesn't have Firebase auth
+    // Prepare headers
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
+    // Add authorization header if we have a token
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // Send the request to the Gemini-powered chat endpoint
     const response = await fetch(`${GENOA_API_URL}/v1/chat`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: headers,
       body: JSON.stringify(requestBody)
     });
 
@@ -86,12 +98,28 @@ export const getChatHistory = async (conversationId) => {
       return { messages: [] };
     }
 
+    // Get the user's ID token for authentication
+    let token = null;
+    try {
+      token = await getIdToken();
+    } catch (error) {
+      console.warn('User not authenticated, proceeding without token');
+    }
+
+    // Prepare headers
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
+    // Add authorization header if we have a token
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     // Send the request to the memory API
     const response = await fetch(`${GENOA_API_URL}/v1/memory/${conversationId}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      headers: headers
     });
 
     // Check if the response is OK
@@ -123,12 +151,28 @@ export const clearChatHistory = async (conversationId) => {
       return { success: true };
     }
 
+    // Get the user's ID token for authentication
+    let token = null;
+    try {
+      token = await getIdToken();
+    } catch (error) {
+      console.warn('User not authenticated, proceeding without token');
+    }
+
+    // Prepare headers
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
+    // Add authorization header if we have a token
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     // Send the request to the memory API
     const response = await fetch(`${GENOA_API_URL}/v1/memory/${conversationId}/clear`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      headers: headers
     });
 
     // Check if the response is OK

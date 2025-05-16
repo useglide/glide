@@ -39,24 +39,27 @@ async def get_current_user(
 ) -> Dict[str, Any]:
     """
     Validate Firebase ID token and return user information.
-    
+
     Args:
         credentials: HTTP Authorization credentials
-        
+
     Returns:
         Dict containing user information
-        
+
     Raises:
         HTTPException: If token is invalid or authentication is disabled
     """
     # Skip authentication if disabled (for development/testing)
     if settings.FIREBASE_AUTH_DISABLED:
+        print("WARNING: FIREBASE_AUTH_DISABLED is set to True. This will not work in production.")
         return {"uid": "test-user", "email": "test@example.com"}
-    
+
     token = credentials.credentials
     try:
         # Verify the ID token
         decoded_token = auth.verify_id_token(token)
+        # Store the original token in the user object for use with external services
+        decoded_token["token"] = token
         return decoded_token
     except Exception as e:
         raise HTTPException(
@@ -70,26 +73,29 @@ async def get_current_user(
 async def optional_auth(request: Request) -> Optional[Dict[str, Any]]:
     """
     Optional authentication that doesn't fail if no token is provided.
-    
+
     Args:
         request: FastAPI request object
-        
+
     Returns:
         Dict containing user information or None if no valid token
     """
     # Skip authentication if disabled
     if settings.FIREBASE_AUTH_DISABLED:
+        print("WARNING: FIREBASE_AUTH_DISABLED is set to True. This will not work in production.")
         return {"uid": "test-user", "email": "test@example.com"}
-    
+
     # Get authorization header
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         return None
-    
+
     token = auth_header.replace("Bearer ", "")
     try:
         # Verify the ID token
         decoded_token = auth.verify_id_token(token)
+        # Store the original token in the user object for use with external services
+        decoded_token["token"] = token
         return decoded_token
     except Exception:
         # Return None instead of raising an exception
