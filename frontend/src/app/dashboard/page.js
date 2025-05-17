@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import { getTwoStageData, getDetailedCourseData } from '../../services/api';
 import { CurrentCourses } from '../../components/CurrentCourses';
+import { UpcomingAssignments } from '../../components/UpcomingAssignments';
+import { Announcements } from '../../components/Announcements';
+import { YourProgress } from '../../components/YourProgress';
+import { Header } from '../../components/Header';
 
 export default function Dashboard() {
   const [error, setError] = useState('');
@@ -20,6 +24,9 @@ export default function Dashboard() {
     error: null,
     data: null
   });
+
+  // State to track favorite/current courses
+  const [favoriteCourses, setFavoriteCourses] = useState([]);
 
   // Use refs to track if data has been cached
   const stage1CachedRef = useRef(false);
@@ -90,6 +97,14 @@ export default function Dashboard() {
         detailedDataCachedRef.current = true;
 
         console.log('Detailed course data cached successfully:', data);
+
+        // Log the structure of assignments to check if we have upcoming assignments
+        if (data && data.assignments) {
+          console.log('Assignments structure:', Object.keys(data.assignments));
+          if (data.assignments.upcoming) {
+            console.log('Upcoming assignments sample:', data.assignments.upcoming.slice(0, 2));
+          }
+        }
       } catch (err) {
         console.error('Failed to fetch detailed course data:', err);
         setDetailedCourseData(prev => ({
@@ -111,6 +126,55 @@ export default function Dashboard() {
     } catch (err) {
       setError('Failed to log out: ' + (err.message || 'Unknown error'));
     }
+  };
+
+  // Initialize favorite courses from localStorage or set to first 5 courses when data is loaded
+  useEffect(() => {
+    if (detailedCourseData.data?.courses) {
+      const storedFavorites = localStorage.getItem('favoriteCourses');
+
+      if (storedFavorites) {
+        try {
+          const parsedFavorites = JSON.parse(storedFavorites);
+          // Filter to make sure all favorites still exist in the course list
+          const validFavorites = parsedFavorites.filter(id =>
+            detailedCourseData.data.courses.some(course => course.id === id)
+          );
+          setFavoriteCourses(validFavorites);
+        } catch (e) {
+          console.error('Error parsing favorite courses:', e);
+          // Default to first 6 courses if there's an error
+          setFavoriteCourses(detailedCourseData.data.courses.slice(0, 6).map(c => c.id));
+        }
+      } else {
+        // Default to first 6 courses if no favorites are stored
+        setFavoriteCourses(detailedCourseData.data.courses.slice(0, 6).map(c => c.id));
+      }
+    }
+  }, [detailedCourseData.data]);
+
+  // Handle adding a course to favorites
+  const handleAddCourse = (courseId) => {
+    setFavoriteCourses(prev => {
+      // Only add if not already in favorites
+      if (!prev.includes(courseId)) {
+        const newFavorites = [...prev, courseId];
+        // Save to localStorage
+        localStorage.setItem('favoriteCourses', JSON.stringify(newFavorites));
+        return newFavorites;
+      }
+      return prev;
+    });
+  };
+
+  // Handle removing a course from favorites
+  const handleRemoveCourse = (courseId) => {
+    setFavoriteCourses(prev => {
+      const newFavorites = prev.filter(id => id !== courseId);
+      // Save to localStorage
+      localStorage.setItem('favoriteCourses', JSON.stringify(newFavorites));
+      return newFavorites;
+    });
   };
 
   const handleRefreshCache = async () => {
@@ -154,6 +218,14 @@ export default function Dashboard() {
 
       console.log('Detailed course data refreshed successfully:', detailedData);
 
+      // Log the structure of assignments to check if we have upcoming assignments
+      if (detailedData && detailedData.assignments) {
+        console.log('Refreshed assignments structure:', Object.keys(detailedData.assignments));
+        if (detailedData.assignments.upcoming) {
+          console.log('Refreshed upcoming assignments sample:', detailedData.assignments.upcoming.slice(0, 2));
+        }
+      }
+
       // Show success message
       setError('Cache refreshed successfully!');
 
@@ -184,22 +256,10 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Dashboard</h1>
-            <button
-              onClick={handleLogout}
-              className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-            >
-              Log out
-            </button>
-          </div>
-        </div>
-      </header>
+    <>
+      <Header title="Dashboard" onLogout={handleLogout} />
 
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <div className="px-6 py-6">
         {error && (
           <div className={`mb-4 rounded-md p-4 text-sm ${
             error.includes('successfully')
@@ -221,58 +281,46 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Refresh Cache Button */}
-        <div className="mb-4 bg-white p-4 shadow sm:rounded-lg">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Cache Control</h2>
-            <button
-              onClick={handleRefreshCache}
-              disabled={refreshingCache || twoStageData.loading}
-              className="rounded-md bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 disabled:opacity-50 flex items-center"
-            >
-              {refreshingCache ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Refreshing...
-                </>
-              ) : (
-                <>
-                  <svg className="mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  Refresh Cache
-                </>
-              )}
-            </button>
-          </div>
-          {twoStageData.loading && (
-            <div className="mt-4 text-center text-sm text-gray-500">
-              Loading two-stage data...
-            </div>
-          )}
-
-          {detailedCourseData.loading && (
-            <div className="mt-4 text-center text-sm text-gray-500">
-              Loading detailed course data...
-            </div>
-          )}
-
-          {detailedCourseData.error && (
-            <div className="mt-4 text-center text-sm text-red-500">
-              Error loading detailed course data: {detailedCourseData.error}
-            </div>
-          )}
-        </div>
-
         {/* Current Courses Section */}
         <CurrentCourses
-          courses={detailedCourseData.data?.courses || []}
+          courses={detailedCourseData.data?.courses?.filter(course =>
+            favoriteCourses.includes(course.id)
+          ) || []}
+          allCourses={detailedCourseData.data?.courses || []}
           loading={detailedCourseData.loading}
+          refreshing={refreshingCache}
+          onAddCourse={handleAddCourse}
+          onRemoveCourse={handleRemoveCourse}
+          onRefreshData={handleRefreshCache}
         />
-      </main>
-    </div>
+
+        {/* Upcoming Assignments and Announcements Section */}
+        <div className="mt-8 flex flex-col lg:flex-row" style={{ gap: '2rem' }}>
+          <div className="lg:w-1/2 flex flex-col">
+            <UpcomingAssignments
+              assignments={detailedCourseData.data?.assignments?.upcoming || []}
+              loading={detailedCourseData.loading}
+            />
+          </div>
+          <div className="lg:w-1/2 flex flex-col">
+            <Announcements
+              announcements={detailedCourseData.data?.announcements || []}
+              loading={detailedCourseData.loading}
+            />
+          </div>
+        </div>
+
+        {/* Your Progress Section */}
+        <YourProgress
+          loading={detailedCourseData.loading}
+          currentGPA={3.78}
+          previousGPA={3.75}
+          completedCredits={109}
+          requiredCredits={120}
+          upcomingDeadlines={5}
+          dueThisWeek={3}
+        />
+      </div>
+    </>
   );
 }

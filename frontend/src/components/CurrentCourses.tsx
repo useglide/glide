@@ -1,7 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
-import { PlusIcon, ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { PlusIcon, ChevronDownIcon, ChevronUpIcon, Settings, RefreshCw } from 'lucide-react';
+import { CourseSelectionModal } from './CourseSelectionModal';
+import { CourseSettingsModal } from './CourseSettingsModal';
+import { darkenColor, isLightColor } from '@/lib/utils';
+import { getTwoStageData, getDetailedCourseData } from '@/services/api';
+
 
 // Define the teacher interface
 interface Teacher {
@@ -16,21 +21,40 @@ interface Course {
   name: string;
   course_code: string;
   teachers?: Teacher[];
-  grade?: {
-    score: number | null;
-    letter: string | null;
-    has_grade: boolean;
-  };
+  grade?: number | null;
+  displayName?: string;
+  customColor?: string;
 }
 
 interface CurrentCoursesProps {
   courses: Course[];
+  allCourses?: Course[];
   loading: boolean;
+  refreshing?: boolean;
+  onAddCourse?: (courseId: number) => void;
+  onRemoveCourse?: (courseId: number) => void;
+  onRefreshData?: () => void;
 }
 
-export function CurrentCourses({ courses = [], loading = false }: CurrentCoursesProps) {
+export function CurrentCourses({
+  courses = [],
+  allCourses = [],
+  loading = false,
+  refreshing = false,
+  onAddCourse,
+  onRemoveCourse,
+  onRefreshData
+}: CurrentCoursesProps) {
   // State to track whether to show all courses or just the first 5
   const [showAllCourses, setShowAllCourses] = useState(false);
+  // State to control the course selection modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  // State to control the course settings modal
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  // State to track the currently selected course for settings
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  // State to store courses with custom settings
+  const [customizedCourses, setCustomizedCourses] = useState<Course[]>([]);
 
   // Course color mapping
   const courseColors = [
@@ -42,15 +66,34 @@ export function CurrentCourses({ courses = [], loading = false }: CurrentCourses
     'bg-[var(--course-indigo)]'
   ];
 
+  // Initialize customized courses from localStorage on component mount
+  useEffect(() => {
+    const savedCourses = localStorage.getItem('customizedCourses');
+    if (savedCourses) {
+      try {
+        setCustomizedCourses(JSON.parse(savedCourses));
+      } catch (error) {
+        console.error('Failed to parse customized courses from localStorage:', error);
+      }
+    }
+  }, []);
+
+  // Save customized courses to localStorage whenever they change
+  useEffect(() => {
+    if (customizedCourses.length > 0) {
+      localStorage.setItem('customizedCourses', JSON.stringify(customizedCourses));
+    }
+  }, [customizedCourses]);
+
   // If loading, show skeleton
   if (loading) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-[var(--white-grey)] p-6 rounded-lg shadow-sm border border-gray-200">
         <div className="h-8 w-48 bg-gray-200 rounded mb-6 animate-pulse"></div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Show 6 skeleton cards */}
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="bg-gray-100 rounded-lg p-6 h-40 animate-pulse">
+            <div key={i} className="bg-gray-100 rounded-lg p-6 min-h-[10rem] animate-pulse">
               <div className="h-4 w-16 bg-gray-200 rounded mb-4"></div>
               <div className="h-6 w-32 bg-gray-200 rounded mb-6"></div>
               <div className="h-4 w-24 bg-gray-200 rounded mb-4"></div>
@@ -65,17 +108,84 @@ export function CurrentCourses({ courses = [], loading = false }: CurrentCourses
   // Empty state
   const hasNoCourses = courses.length === 0;
 
-  // Determine which courses to display
-  const displayCourses = showAllCourses ? courses : courses.slice(0, 5);
+  // Determine which courses to display - show 6 by default
+  const displayCourses = showAllCourses ? courses : courses.slice(0, 6);
 
   // Toggle function to show/hide all courses
   const toggleShowAllCourses = () => {
     setShowAllCourses(!showAllCourses);
   };
 
+  // Handle opening the modal
+  const handleOpenModal = () => {
+    setIsModalOpen(true);
+  };
+
+  // Handle adding a course
+  const handleAddCourse = (courseId: number) => {
+    if (onAddCourse) {
+      onAddCourse(courseId);
+    }
+  };
+
+  // Handle opening the settings modal
+  const handleOpenSettings = (course: Course) => {
+    setSelectedCourse(course);
+    setIsSettingsModalOpen(true);
+  };
+
+  // Handle saving course settings
+  const handleSaveSettings = (courseId: number, displayName: string, customColor: string) => {
+    // Find the course in the courses array
+    const course = courses.find(c => c.id === courseId);
+    if (!course) return;
+
+    // Create a new customized course or update existing one
+    const updatedCourse = { ...course, displayName, customColor };
+
+    // Check if this course is already customized
+    const existingIndex = customizedCourses.findIndex(c => c.id === courseId);
+
+    if (existingIndex >= 0) {
+      // Update existing customized course
+      const updatedCustomizedCourses = [...customizedCourses];
+      updatedCustomizedCourses[existingIndex] = updatedCourse;
+      setCustomizedCourses(updatedCustomizedCourses);
+    } else {
+      // Add new customized course
+      setCustomizedCourses([...customizedCourses, updatedCourse]);
+    }
+  };
+
+  // Get customized course data if available
+  const getCustomizedCourse = (courseId: number) => {
+    return customizedCourses.find(c => c.id === courseId);
+  };
+
+  // Handle refresh button click
+  const handleRefresh = () => {
+    if (onRefreshData && !refreshing && !loading) {
+      onRefreshData();
+    }
+  };
+
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Current Courses</h2>
+    <div className="bg-[var(--white-grey)] p-10 rounded-lg shadow-lg">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-3xl font-bold text-[var(--primary-color)]">Current Courses</h2>
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={refreshing || loading}
+          className="flex items-center justify-center px-3 py-1.5 rounded-md bg-[var(--glide-blue-10)] transition-color cursor-pointer"
+          aria-label="Refresh data"
+        >
+          <RefreshCw
+            className={`h-4 w-4 text-[var(--glide-blue)] ${refreshing ? 'animate-spin' : ''}`}
+          />
+          <span className="ml-1.5 text-sm font-medium text-[var(--glide-blue)]">Refresh Data</span>
+        </button>
+      </div>
 
       {hasNoCourses ? (
         <div className="text-center py-8">
@@ -87,7 +197,7 @@ export function CurrentCourses({ courses = [], loading = false }: CurrentCourses
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No courses found</h3>
           <p className="text-gray-500 mb-6">You don&apos;t have any current courses. Add a course to get started.</p>
-          <AddCourseCard />
+          <AddCourseCard onClick={handleOpenModal} />
         </div>
       ) : (
         <>
@@ -98,20 +208,24 @@ export function CurrentCourses({ courses = [], loading = false }: CurrentCourses
                 key={course.id}
                 course={course}
                 colorClass={courseColors[index % courseColors.length]}
+                onOpenSettings={handleOpenSettings}
+                customizedCourse={getCustomizedCourse(course.id)}
               />
             ))}
 
-            {/* Add Course card - always show */}
-            <AddCourseCard />
+            {/* Add Course card - only show if showing all courses or if we have less than 6 courses */}
+            {(showAllCourses || courses.length < 6) && (
+              <AddCourseCard onClick={handleOpenModal} />
+            )}
           </div>
 
           {/* Toggle button to show/hide all courses */}
-          {courses.length > 5 && (
+          {courses.length >= 6 && (
             <div className="mt-4">
               <button
                 type="button"
                 onClick={toggleShowAllCourses}
-                className="w-full flex items-center justify-center py-3 px-4 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
+                className="w-full flex items-center justify-center py-3 px-4 bg-[var(--glide-blue-10)] text-[var(--glide-blue)] rounded-lg transition-colors cursor-pointer font-bold"
               >
                 {showAllCourses ? (
                   <>
@@ -120,7 +234,7 @@ export function CurrentCourses({ courses = [], loading = false }: CurrentCourses
                   </>
                 ) : (
                   <>
-                    <span>View All Courses</span>
+                    <span>View All Favorites</span>
                     <ChevronDownIcon className="ml-2 h-4 w-4" />
                   </>
                 )}
@@ -129,15 +243,63 @@ export function CurrentCourses({ courses = [], loading = false }: CurrentCourses
           )}
         </>
       )}
+
+      {/* Course Selection Modal */}
+      <CourseSelectionModal
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+        allCourses={allCourses.map(course => ({
+          ...course,
+          grade: course.grade !== undefined ? {
+            score: course.grade,
+            letter: null,
+            has_grade: course.grade !== null
+          } : undefined
+        }))}
+        currentCourses={courses.map(course => ({
+          ...course,
+          grade: course.grade !== undefined ? {
+            score: course.grade,
+            letter: null,
+            has_grade: course.grade !== null
+          } : undefined
+        }))}
+        onAddCourse={handleAddCourse}
+        onRemoveCourse={onRemoveCourse}
+        loading={loading}
+      />
+
+      {/* Course Settings Modal */}
+      {selectedCourse && (
+        <CourseSettingsModal
+          open={isSettingsModalOpen}
+          onOpenChange={setIsSettingsModalOpen}
+          course={selectedCourse}
+          onSaveSettings={handleSaveSettings}
+          predefinedColors={courseColors}
+        />
+      )}
     </div>
   );
 }
 
+
+
 // Course Card Component
-function CourseCard({ course, colorClass }: { course: Course, colorClass: string }) {
+function CourseCard({
+  course,
+  colorClass,
+  onOpenSettings,
+  customizedCourse
+}: {
+  course: Course,
+  colorClass: string,
+  onOpenSettings: (course: Course) => void,
+  customizedCourse?: Course | null
+}) {
   // Format the grade to show as a percentage
-  const gradePercentage = course.grade?.score !== null && course.grade?.score !== undefined
-    ? `${Math.round(course.grade.score)}%`
+  const gradePercentage = course.grade !== null && course.grade !== undefined
+    ? `${Math.round(course.grade)}%`
     : null;
 
   // Get the primary teacher's name if available
@@ -145,41 +307,133 @@ function CourseCard({ course, colorClass }: { course: Course, colorClass: string
     ? course.teachers[0].display_name
     : null;
 
+  // Use custom color if available, otherwise use the default color
+  const cardColor = customizedCourse?.customColor || colorClass;
+
+  // Use custom display name if available, otherwise use the default name
+  const displayName = customizedCourse?.displayName || course.name;
+
+  // Determine if the card color is light or dark
+  let bgColor: string;
+  if (cardColor.startsWith('bg-')) {
+    // Extract the CSS variable from the class name
+    const cssVar = cardColor.replace('bg-[var(--', '').replace(')]', '');
+    bgColor = `var(--${cssVar})`;
+  } else {
+    bgColor = cardColor;
+  }
+
+  // For course cards, we want to use a darker shade of the same color for text
+  // We'll apply the text color directly in the style attribute
+  let textColorStyle: string;
+
+  // For CSS variables
+  if (bgColor.startsWith('var(--')) {
+    // Extract the variable name
+    const varName = bgColor.replace('var(--', '').replace(')', '');
+
+    // Map CSS variables to their approximate hex values
+    const cssVarMap: Record<string, string> = {
+      'course-blue': '#E0EFFF',    // Light blue
+      'course-purple': '#EDE9FE',  // Light purple
+      'course-green': '#DCFCE7',   // Light green
+      'course-amber': '#FEF3C7',   // Light amber/yellow
+      'course-pink': '#FCE7F3',    // Light pink
+      'course-indigo': '#6366f1'   // Indigo (darker)
+    };
+
+    const hexColor = cssVarMap[varName];
+    if (hexColor) {
+      if (isLightColor(hexColor)) {
+        // For light backgrounds, return a darker, more vibrant shade of the same color
+        textColorStyle = darkenColor(hexColor, 60);
+      } else {
+        // For dark backgrounds, return white
+        textColorStyle = 'white';
+      }
+    } else if (varName === 'course-indigo') {
+      textColorStyle = 'white'; // It's dark, so use white
+    } else if (varName.startsWith('course-')) {
+      // Most course colors are light, so darken them
+      textColorStyle = darkenColor('#E0E0FF', 60);
+    } else {
+      textColorStyle = '#1E293B'; // Default
+    }
+  } else if (bgColor.startsWith('#')) {
+    // For hex colors
+    if (isLightColor(bgColor)) {
+      // For light backgrounds, return a darker, more vibrant shade of the same color
+      textColorStyle = darkenColor(bgColor, 60);
+    } else {
+      // For dark backgrounds, return white
+      textColorStyle = 'white';
+    }
+  } else {
+    textColorStyle = '#1E293B'; // Default
+  }
+
+  // Use Tailwind classes for text colors when possible
+  const textColor = textColorStyle === 'white' ? 'text-white' : '';
+  const secondaryTextColor = textColorStyle === 'white' ? 'text-white/80' : '';
+
+  // Determine the class name based on whether we're using a custom color or a predefined one
+  const cardClassName = cardColor.startsWith('bg')
+    ? `${cardColor} rounded-2xl p-4 flex flex-col relative min-h-[10rem]`
+    : 'rounded-2xl p-4 flex flex-col relative min-h-[10rem]';
+
   return (
-    <div className={`${colorClass} rounded-lg p-4 flex flex-col relative h-40`}>
-      {/* Course code */}
+    <div
+      className={cardClassName}
+      style={cardColor.startsWith('bg-') ? {} : { backgroundColor: cardColor }}
+    >
+      {/* Course code and settings icon */}
       <div className="flex justify-between items-start">
-        <span className="text-xs font-semibold text-[var(--card-text-secondary)]">
+        <span
+          className={`text-xs font-semibold ${secondaryTextColor}`}
+          style={{ color: textColorStyle }}
+        >
           {course.course_code}
         </span>
         <button
           type="button"
-          className="text-[var(--card-text-secondary)] hover:text-[var(--card-text)] transition-colors"
+          onClick={() => onOpenSettings(course)}
+          className={`w-5 h-5 flex items-center justify-center ${secondaryTextColor} hover:${textColor} transition-colors cursor-pointer`}
+          style={{ color: textColorStyle }}
           aria-label="Course settings"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M4 12C4 12.5523 4.44772 13 5 13C5.55228 13 6 12.5523 6 12C6 11.4477 5.55228 11 5 11C4.44772 11 4 11.4477 4 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M11 12C11 12.5523 11.4477 13 12 13C12.5523 13 13 12.5523 13 12C13 11.4477 12.5523 11 12 11C11.4477 11 11 11.4477 11 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M18 12C18 12.5523 18.4477 13 19 13C19.5523 13 20 12.5523 20 12C20 11.4477 19.5523 11 19 11C18.4477 11 18 11.4477 18 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+          <Settings size={16} />
         </button>
       </div>
 
       {/* Course name */}
-      <h3 className="text-xl font-bold text-[var(--card-text)] mt-2 mb-1">
-        {course.name}
+      <h3
+        className={`text-xl font-bold ${textColor} mt-2 mb-1 break-words`}
+        style={{ color: textColorStyle }}
+      >
+        {displayName}
       </h3>
 
       {/* Professor name */}
       {primaryTeacher && (
-        <p className="text-sm text-[var(--card-text-secondary)] mb-auto">
+        <p
+          className={`text-sm ${secondaryTextColor} mb-auto`}
+          style={{ color: textColorStyle }}
+        >
           {primaryTeacher}
         </p>
       )}
 
       {/* Grade percentage */}
       {gradePercentage && (
-        <div className="self-end bg-white bg-opacity-20 text-[var(--card-text)] px-3 py-1 rounded-md text-sm font-medium">
+        <div
+          className="self-end mt-2 px-3 py-1 rounded-md text-sm font-bold"
+          // regular style white background, black text
+          style={{
+            backgroundColor: 'var(--white-grey)',
+            // if color is light use dark text
+            color: textColorStyle === 'white' ? 'black' : textColorStyle  ,
+          }}
+        >
           {gradePercentage}
         </div>
       )}
@@ -188,17 +442,18 @@ function CourseCard({ course, colorClass }: { course: Course, colorClass: string
 }
 
 // Add Course Card Component
-function AddCourseCard() {
+function AddCourseCard({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
-      className="bg-gray-100 hover:bg-gray-200 rounded-lg p-4 flex flex-col items-center justify-center h-40 cursor-pointer transition-colors border-2 border-dashed border-gray-300 w-full"
+      onClick={onClick}
+      className="bg-gray-100 hover:bg-gray-200 rounded-lg p-4 flex flex-col items-center justify-center min-h-[10rem] cursor-pointer transition-colors border-2 border-dashed border-gray-300 w-full"
       aria-label="Add a new course"
     >
       <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mb-2">
         <PlusIcon className="h-6 w-6 text-gray-500" />
       </div>
-      <span className="text-gray-600 font-medium">Add Course</span>
+      <span className="text-gray-600 font-medium">Edit Courses</span>
     </button>
   );
 }
