@@ -2,20 +2,26 @@
   "version": 2,
   "builds": [
     {
-      "src": "main.py",
-      "use": "@vercel/python"
+      "src": "vercel_app.py",
+      "use": "@vercel/python",
+      "config": {
+        "buildCommand": "./build_vercel.sh",
+        "installCommand": "pip install -r requirements-vercel.txt"
+      }
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "main.py"
+      "dest": "vercel_app.py"
     }
   ],
   "env": {
+    "EXPRESS_BACKEND_URL": "https://glide-jet.vercel.app",
+    "HOST": "0.0.0.0",
+    "PORT": "8000",
+    "DEBUG": "False",
     "FIREBASE_PROJECT_ID": "glide-c7ef6",
-    "FIREBASE_DATABASE_URL": "https://glide-c7ef6-default-rtdb.firebaseio.com/",
-    "SECRET_KEY": "apcKXWR017Azby+5VxN0ppEFauO1OVo9/LxtaEriiWA=",
-    "FRONTEND_URL": "https://glide-b8by.vercel.app"
+    "FIREBASE_AUTH_DISABLED": "True"
   }
 }

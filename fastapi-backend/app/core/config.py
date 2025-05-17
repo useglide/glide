@@ -1,46 +1,47 @@
-import os
-from typing import List
+from typing import Optional, Dict, Any
 from pydantic_settings import BaseSettings
-from pydantic import field_validator
-from dotenv import load_dotenv
+import json
+import os
 
-# Load environment variables from .env file
-load_dotenv()
 
 class Settings(BaseSettings):
+    """Application settings."""
+    
     # API settings
-    API_V1_STR: str = "/api"
-
-    # CORS settings
-    CORS_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "https://glide-v3.vercel.app",
-        "https://glide-v3-git-main.vercel.app",
-        "https://glide-v3-*.vercel.app",
-        "https://glide-53ye.vercel.app",
-        "https://glide-jet.vercel.app",
-        "https://glide-b8by.vercel.app"
-    ]
-
-    # Firebase settings
-    FIREBASE_PROJECT_ID: str = os.getenv("FIREBASE_PROJECT_ID", "")
-    FIREBASE_DATABASE_URL: str = os.getenv("FIREBASE_DATABASE_URL", "")
-    FIREBASE_SERVICE_ACCOUNT: str = os.getenv("FIREBASE_SERVICE_ACCOUNT", "")
-
-    # JWT settings
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key")
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
-
+    API_V1_STR: str = "/api/v1"
+    PROJECT_NAME: str = "Glide AI Chat API"
+    DEBUG: bool = False
+    
     # Server settings
-    PORT: int = int(os.getenv("PORT", "8000"))
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
+    
+    # Express.js backend URL
+    EXPRESS_BACKEND_URL: str = "http://localhost:3001"
+    
+    # Firebase settings
+    FIREBASE_PROJECT_ID: str = "glide-c7ef6"
+    FIREBASE_AUTH_DISABLED: bool = False
+    FIREBASE_SERVICE_ACCOUNT_KEY: Optional[Dict[str, Any]] = None
+    
+    # Gemini API settings
+    GEMINI_API_KEY: Optional[str] = None
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
 
-    # Frontend URL
-    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    def __init__(self, **data: Any):
+        super().__init__(**data)
+        
+        # Parse Firebase service account key from environment variable if available
+        firebase_key_env = os.getenv("FIREBASE_SERVICE_ACCOUNT_KEY")
+        if firebase_key_env:
+            try:
+                self.FIREBASE_SERVICE_ACCOUNT_KEY = json.loads(firebase_key_env)
+            except json.JSONDecodeError:
+                print("Warning: Could not parse FIREBASE_SERVICE_ACCOUNT_KEY as JSON")
 
-    model_config = {
-        "case_sensitive": True
-    }
 
-# Create settings instance
+# Create global settings object
 settings = Settings()

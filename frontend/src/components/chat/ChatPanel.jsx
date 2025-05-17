@@ -5,7 +5,7 @@ import { XIcon, TrashIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
-import { sendChatMessage, clearChatHistory } from '@/services/chatService';
+import { sendChatMessage, clearChatHistory, getChatHistory } from '@/services/chatService';
 
 /**
  * A panel that displays a chat interface
@@ -16,7 +16,7 @@ import { sendChatMessage, clearChatHistory } from '@/services/chatService';
  */
 export function ChatPanel({ isOpen, onClose, className }) {
   const [messages, setMessages] = useState([
-    { content: 'Hi there! How can I help you with your Canvas courses today?', isUser: false }
+    { content: 'Hi there! I\'m Genoa, your AI Assistant powered by Google\'s Gemini Pro. How can I help you today?', isUser: false }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState(null);
@@ -27,20 +27,49 @@ export function ChatPanel({ isOpen, onClose, className }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Load conversation ID from localStorage
+  // Load conversation ID from localStorage and fetch chat history
   useEffect(() => {
     const savedConversationId = localStorage.getItem('chatConversationId');
     if (savedConversationId) {
       setConversationId(savedConversationId);
+
+      // Fetch chat history for this conversation
+      const loadChatHistory = async () => {
+        setIsLoading(true);
+        try {
+          const history = await getChatHistory(savedConversationId);
+
+          if (history && history.messages && history.messages.length > 0) {
+            // Convert the messages to the format expected by the component
+            const formattedMessages = [
+              // Keep the welcome message
+              { content: 'Hi there! I\'m Genoa, your AI Assistant powered by Google\'s Gemini Pro. How can I help you today?', isUser: false },
+              // Add the history messages
+              ...history.messages.map(msg => ({
+                content: msg.content,
+                isUser: msg.role === 'user'
+              }))
+            ];
+
+            setMessages(formattedMessages);
+          }
+        } catch (error) {
+          console.error('Failed to load chat history:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      loadChatHistory();
     }
   }, []);
 
   const handleSendMessage = async (content) => {
-    try {
-      // Add user message to the chat
-      setMessages((prev) => [...prev, { content, isUser: true }]);
-      setIsLoading(true);
+    // Add user message to the chat
+    setMessages((prev) => [...prev, { content, isUser: true }]);
+    setIsLoading(true);
 
+    try {
       // Send message to API
       const response = await sendChatMessage(content, conversationId);
 
@@ -48,7 +77,7 @@ export function ChatPanel({ isOpen, onClose, className }) {
       setMessages((prev) => [...prev, { content: response.response, isUser: false }]);
 
       // Save conversation ID if it's new
-      if (!conversationId && response.conversation_id) {
+      if (!conversationId && response.conversation_id && response.conversation_id !== "error") {
         setConversationId(response.conversation_id);
         localStorage.setItem('chatConversationId', response.conversation_id);
       }
@@ -64,19 +93,25 @@ export function ChatPanel({ isOpen, onClose, className }) {
   };
 
   const handleClearChat = async () => {
+    setIsLoading(true);
+
     try {
       if (conversationId) {
-        setIsLoading(true);
-        await clearChatHistory(conversationId);
+        const result = await clearChatHistory(conversationId);
+
+        if (result && result.success) {
+          console.log('Chat history cleared successfully');
+        } else {
+          console.warn('Failed to clear chat history on the server');
+        }
       }
-      
-      // Reset messages and keep the welcome message
-      setMessages([
-        { content: 'Hi there! How can I help you with your Canvas courses today?', isUser: false }
-      ]);
     } catch (error) {
       console.error('Failed to clear chat history:', error);
     } finally {
+      // Reset messages and keep the welcome message regardless of API success/failure
+      setMessages([
+        { content: 'Hi there! I\'m Genoa, your AI Assistant powered by Google\'s Gemini Pro. How can I help you today?', isUser: false }
+      ]);
       setIsLoading(false);
     }
   };
@@ -91,7 +126,10 @@ export function ChatPanel({ isOpen, onClose, className }) {
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b px-4 py-3">
-        <h2 className="text-lg font-semibold">Canvas Assistant</h2>
+        <div>
+          <h2 className="text-lg font-semibold">Genoa AI Assistant</h2>
+          <p className="text-xs text-muted-foreground">Powered by Gemini Pro</p>
+        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleClearChat}

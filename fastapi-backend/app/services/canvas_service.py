@@ -1,400 +1,216 @@
 from typing import Dict, List, Any, Optional
+import requests
 from canvasapi import Canvas
-from canvasapi.exceptions import CanvasException
+import json
+
+from app.core.config import settings
+from app.services.firestore_service import FirestoreService
+
 
 class CanvasService:
-    """Service for Canvas API operations using canvasapi library"""
+    """Service for interacting with the Canvas LMS API."""
 
-    @staticmethod
-    def create_canvas_client(credentials: Dict[str, str]) -> Canvas:
+    def __init__(self, canvas_url: str = None, api_key: str = None):
         """
-        Create a Canvas API client with the provided credentials
+        Initialize the Canvas service.
 
         Args:
-            credentials: Dict with canvasUrl and canvasApiKey
-
-        Returns:
-            Canvas client instance
+            canvas_url: The URL of the Canvas instance
+            api_key: The API key for authenticating with Canvas
         """
-        canvas_url = credentials.get('canvasUrl')
-        canvas_api_key = credentials.get('canvasApiKey')
+        self.canvas_url = canvas_url
+        self.api_key = api_key
+        self.canvas = None
+        self.firestore_service = FirestoreService()
 
-        if not canvas_url or not canvas_api_key:
-            raise ValueError('Canvas URL and API key are required')
+        if canvas_url and api_key:
+            self.initialize_canvas()
 
-        return Canvas(canvas_url, canvas_api_key)
+    def initialize_canvas(self):
+        """Initialize the Canvas API client."""
+        try:
+            if not self.canvas_url or not self.api_key:
+                print("Cannot initialize Canvas API: Missing canvas_url or api_key")
+                self.canvas = None
+                return
 
-    @staticmethod
-    async def get_user_info(credentials: Dict[str, str]) -> Dict[str, Any]:
+            print(f"Initializing Canvas API with URL: {self.canvas_url}")
+            self.canvas = Canvas(self.canvas_url, self.api_key)
+            print("Canvas API initialized successfully")
+        except Exception as e:
+            print(f"Error initializing Canvas API: {str(e)}")
+            self.canvas = None
+
+    async def get_user_canvas_credentials(self, user_id: str, id_token: Optional[str] = None) -> Dict[str, str]:
         """
-        Get current user information
+        Get Canvas credentials for a user from the Express.js backend.
 
         Args:
-            credentials: Dict with canvasUrl and canvasApiKey
+            user_id: The Firebase user ID
+            id_token: Optional Firebase ID token. If not provided, will use user_id as the token (for backward compatibility)
 
         Returns:
-            User data
+            Dict containing Canvas URL and API key
         """
         try:
-            canvas = CanvasService.create_canvas_client(credentials)
-            user = canvas.get_current_user()
+            # Make request to Express.js backend
+            url = f"{settings.EXPRESS_BACKEND_URL}/auth/canvas-credentials"
 
-            # Convert user object to dict
-            user_data = {
-                'id': user.id,
-                'name': user.name,
-                'email': getattr(user, 'email', None),
-                'login_id': getattr(user, 'login_id', None),
-                'avatar_url': getattr(user, 'avatar_url', None),
-                'bio': getattr(user, 'bio', None),
-                'primary_email': getattr(user, 'primary_email', None),
-                'time_zone': getattr(user, 'time_zone', None),
-                'locale': getattr(user, 'locale', None)
+            # Use the provided ID token if available, otherwise use the user_id
+            auth_token = id_token if id_token else user_id
+
+            headers = {
+                "Authorization": f"Bearer {auth_token}",
+                "Content-Type": "application/json"
             }
 
-            return user_data
-        except CanvasException as error:
-            print(f'Error getting user info: {error}')
-            raise
+            print(f"Requesting Canvas credentials from: {url} for user ID: {user_id}")
+            response = requests.get(url, headers=headers)
 
-    @staticmethod
-    async def get_courses(credentials: Dict[str, str], include_terms: bool = True,
-                         include_teachers: bool = True, include_scores: bool = True) -> List[Dict[str, Any]]:
+            if response.status_code == 401:
+                print(f"Authentication failed when getting Canvas credentials. Status code: 401")
+                print(f"Make sure the Firebase token is valid and the Express.js backend is configured correctly.")
+                print(f"If FIREBASE_AUTH_DISABLED=True, you need to provide a valid Firebase ID token.")
+
+                if settings.FIREBASE_AUTH_DISABLED:
+                    print("WARNING: FIREBASE_AUTH_DISABLED is set to True. This will not work in production.")
+                    print("You need to set FIREBASE_AUTH_DISABLED=False and provide a valid Firebase ID token.")
+
+                return {}
+
+            response.raise_for_status()
+
+            credentials = response.json()
+            if not credentials.get("canvasUrl") or not credentials.get("canvasApiKey"):
+                print(f"Canvas credentials incomplete. Response: {credentials}")
+                return {}
+
+            return {
+                "canvas_url": credentials.get("canvasUrl"),
+                "api_key": credentials.get("canvasApiKey")
+            }
+        except requests.exceptions.ConnectionError as e:
+            print(f"Connection error when getting Canvas credentials: {str(e)}")
+            print(f"Check if the EXPRESS_BACKEND_URL ({settings.EXPRESS_BACKEND_URL}) is correct and accessible.")
+            return {}
+        except Exception as e:
+            print(f"Error getting Canvas credentials: {str(e)}")
+            print(f"Response status code: {getattr(response, 'status_code', 'N/A')}")
+            print(f"Response content: {getattr(response, 'text', 'N/A')}")
+            return {}
+
+    async def get_courses(self, user_id: Optional[str] = None, id_token: Optional[str] = None) -> List[Dict[str, Any]]:
         """
-        Get all available courses
+        Get courses for a user.
 
         Args:
-            credentials: Dict with canvasUrl and canvasApiKey
-            include_terms: Whether to include terms
-            include_teachers: Whether to include teachers
-            include_scores: Whether to include total scores
+            user_id: Optional Firebase user ID. If provided, will fetch credentials from Firestore.
+            id_token: Optional Firebase ID token. Not used when fetching from Firestore directly.
 
         Returns:
             List of courses
         """
         try:
-            canvas = CanvasService.create_canvas_client(credentials)
+            # If user_id is provided, get credentials from Firestore
+            if user_id and not (self.canvas_url and self.api_key):
+                print(f"Getting Canvas credentials from Firestore for user ID: {user_id}")
+                credentials = await self.firestore_service.get_canvas_credentials(user_id)
 
-            # Build parameters
-            params = {'state': ['available']}
-            includes = []
+                if not credentials:
+                    print("Failed to get Canvas credentials from Firestore")
+                    return []
 
-            if include_terms:
-                includes.append('term')
-            if include_teachers:
-                includes.append('teachers')
-            if include_scores:
-                includes.append('total_scores')
+                self.canvas_url = credentials.get("canvas_url")
+                self.api_key = credentials.get("api_key")
 
-            if includes:
-                params['include'] = includes
+                if not self.canvas_url or not self.api_key:
+                    print(f"Invalid Canvas credentials: URL={self.canvas_url}, API Key={'[REDACTED]' if self.api_key else 'None'}")
+                    return []
+
+                self.initialize_canvas()
+
+            # Check if Canvas client is initialized
+            if not self.canvas:
+                print("Canvas client is not initialized")
+                return []
+
+            # Get current user
+            try:
+                print("Getting current Canvas user")
+                user = self.canvas.get_current_user()
+                print(f"Current Canvas user: {user.name} (ID: {user.id})")
+            except Exception as e:
+                print(f"Error getting current Canvas user: {str(e)}")
+                return []
 
             # Get courses
-            courses = canvas.get_courses(**params)
+            try:
+                print("Getting Canvas courses")
+                courses = user.get_courses(include=["term", "teachers"])
+                print(f"Retrieved {len(list(courses))} courses")
+            except Exception as e:
+                print(f"Error getting Canvas courses: {str(e)}")
+                return []
 
-            # Convert course objects to dicts
-            course_list = []
+            # Format courses
+            formatted_courses = []
             for course in courses:
-                course_dict = {
-                    'id': course.id,
-                    'name': course.name,
-                    'course_code': getattr(course, 'course_code', None),
-                    'workflow_state': getattr(course, 'workflow_state', None),
-                    'start_at': getattr(course, 'start_at', None),
-                    'end_at': getattr(course, 'end_at', None),
-                    'enrollment_term_id': getattr(course, 'enrollment_term_id', None),
-                    'public_description': getattr(course, 'public_description', None),
-                    'syllabus_body': getattr(course, 'syllabus_body', None),
-                    'default_view': getattr(course, 'default_view', None),
-                    'image_download_url': getattr(course, 'image_download_url', None),
-                }
+                try:
+                    # Get course data as dict
+                    course_data = course.__dict__
 
-                # Add term if available
-                if include_terms and hasattr(course, 'term'):
-                    course_dict['term'] = {
-                        'id': course.term.get('id'),
-                        'name': course.term.get('name'),
-                        'start_at': course.term.get('start_at'),
-                        'end_at': course.term.get('end_at')
+                    # Extract teacher information
+                    teachers = []
+                    if hasattr(course, "teachers"):
+                        for teacher in course.teachers:
+                            teachers.append({
+                                "id": teacher.get("id"),
+                                "display_name": teacher.get("display_name")
+                            })
+
+                    # Format course data
+                    formatted_course = {
+                        "id": course_data.get("id"),
+                        "name": course_data.get("name"),
+                        "course_code": course_data.get("course_code"),
+                        "term": course_data.get("term", {}).get("name") if course_data.get("term") else None,
+                        "start_at": course_data.get("start_at"),
+                        "end_at": course_data.get("end_at"),
+                        "teachers": teachers
                     }
 
-                # Add teachers if available
-                if include_teachers and hasattr(course, 'teachers'):
-                    course_dict['teachers'] = [
-                        {
-                            'id': teacher.get('id'),
-                            'display_name': teacher.get('display_name'),
-                            'avatar_image_url': teacher.get('avatar_image_url')
-                        }
-                        for teacher in course.teachers
-                    ]
-
-                # Add enrollments if available
-                if hasattr(course, 'enrollments'):
-                    course_dict['enrollments'] = course.enrollments
-
-                course_list.append(course_dict)
-
-            return course_list
-        except CanvasException as error:
-            print(f'Error getting courses: {error}')
-            raise
-
-    @staticmethod
-    async def get_course_assignments(credentials: Dict[str, str], course_id: int,
-                                    include_submission: bool = False) -> List[Dict[str, Any]]:
-        """
-        Get assignments for a specific course
-
-        Args:
-            credentials: Dict with canvasUrl and canvasApiKey
-            course_id: Course ID
-            include_submission: Whether to include submission
-
-        Returns:
-            List of assignments
-        """
-        try:
-            canvas = CanvasService.create_canvas_client(credentials)
-            course = canvas.get_course(course_id)
-
-            # Build parameters
-            params = {}
-            if include_submission:
-                params['include'] = ['submission']
-
-            # Get assignments
-            assignments = course.get_assignments(**params)
-
-            # Convert assignment objects to dicts
-            assignment_list = []
-            for assignment in assignments:
-                assignment_dict = {
-                    'id': assignment.id,
-                    'name': assignment.name,
-                    'description': getattr(assignment, 'description', None),
-                    'due_at': getattr(assignment, 'due_at', None),
-                    'points_possible': getattr(assignment, 'points_possible', None),
-                    'grading_type': getattr(assignment, 'grading_type', None),
-                    'submission_types': getattr(assignment, 'submission_types', None),
-                    'html_url': getattr(assignment, 'html_url', None),
-                    'published': getattr(assignment, 'published', None),
-                    'allowed_attempts': getattr(assignment, 'allowed_attempts', None),
-                    'unlock_at': getattr(assignment, 'unlock_at', None),
-                    'lock_at': getattr(assignment, 'lock_at', None),
-                }
-
-                # Add submission if available
-                if include_submission and hasattr(assignment, 'submission'):
-                    assignment_dict['submission'] = {
-                        'id': assignment.submission.get('id'),
-                        'submitted_at': assignment.submission.get('submitted_at'),
-                        'score': assignment.submission.get('score'),
-                        'grade': assignment.submission.get('grade'),
-                        'late': assignment.submission.get('late'),
-                        'missing': assignment.submission.get('missing'),
-                        'workflow_state': assignment.submission.get('workflow_state')
-                    }
-
-                assignment_list.append(assignment_dict)
-
-            return assignment_list
-        except CanvasException as error:
-            print(f'Error getting course assignments: {error}')
-            raise
-
-    @staticmethod
-    async def get_course_syllabus(credentials: Dict[str, str], course_id: int) -> Dict[str, Any]:
-        """Get the syllabus for a specific course"""
-        if CanvasService.is_mock_credentials(credentials):
-            return {"syllabus_body": "<h1>Mock Syllabus</h1><p>This is a mock syllabus for development purposes.</p>"}
-
-        try:
-            canvas = CanvasService.create_canvas_client(credentials)
-            course = canvas.get_course(course_id)
-            return {"syllabus_body": getattr(course, "syllabus_body", "No syllabus available")}
-        except CanvasException as error:
-            print(f'Error getting course syllabus: {error}')
-            raise
-
-    @staticmethod
-    async def get_course_professor(credentials: Dict[str, str], course_id: int) -> Dict[str, Any]:
-        """Get the professor information for a specific course"""
-        if CanvasService.is_mock_credentials(credentials):
-            return {
-                "id": 9876,
-                "display_name": "Dr. Mock Professor",
-                "avatar_image_url": "https://example.com/avatar.png",
-                "email": "professor@example.com"
-            }
-
-        try:
-            canvas = CanvasService.create_canvas_client(credentials)
-            course = canvas.get_course(course_id, include=["teachers"])
-
-            if not hasattr(course, "teachers") or not course.teachers:
-                return {"error": "No professor information available"}
-
-            professor = course.teachers[0]
-            return {
-                "id": professor.get("id"),
-                "display_name": professor.get("display_name"),
-                "avatar_image_url": professor.get("avatar_image_url"),
-                "email": professor.get("email", "No email available")
-            }
-        except CanvasException as error:
-            print(f'Error getting course professor: {error}')
-            raise
-
-    @staticmethod
-    async def get_course_details(credentials: Dict[str, str], course_id: int) -> Dict[str, Any]:
-        """Get detailed information for a specific course"""
-        if CanvasService.is_mock_credentials(credentials):
-            return {
-                "id": course_id,
-                "name": "Mock Course 101",
-                "course_code": "MOCK101",
-                "workflow_state": "available",
-                "start_at": "2023-09-01T00:00:00Z",
-                "end_at": "2023-12-15T00:00:00Z",
-                "syllabus_body": "<h1>Mock Syllabus</h1><p>This is a mock syllabus for development purposes.</p>",
-                "term": {"id": 123, "name": "Fall 2023"},
-                "teachers": [{"id": 9876, "display_name": "Dr. Mock Professor"}]
-            }
-
-        try:
-            canvas = CanvasService.create_canvas_client(credentials)
-            course = canvas.get_course(course_id, include=["term", "teachers", "syllabus_body"])
-
-            course_details = {
-                "id": course.id,
-                "name": course.name,
-                "course_code": getattr(course, "course_code", None),
-                "workflow_state": getattr(course, "workflow_state", None),
-                "start_at": getattr(course, "start_at", None),
-                "end_at": getattr(course, "end_at", None),
-                "syllabus_body": getattr(course, "syllabus_body", None)
-            }
-
-            # Add term if available
-            if hasattr(course, "term"):
-                course_details["term"] = {
-                    "id": course.term.get("id"),
-                    "name": course.term.get("name")
-                }
-
-            # Add teachers if available
-            if hasattr(course, "teachers"):
-                course_details["teachers"] = [
-                    {
-                        "id": teacher.get("id"),
-                        "display_name": teacher.get("display_name")
-                    }
-                    for teacher in course.teachers
-                ]
-
-            return course_details
-        except CanvasException as error:
-            print(f'Error getting course details: {error}')
-            raise
-
-    @staticmethod
-    async def get_assignment_details(credentials: Dict[str, str], course_id: int, assignment_id: int) -> Dict[str, Any]:
-        """Get detailed information for a specific assignment"""
-        if CanvasService.is_mock_credentials(credentials):
-            return {
-                "id": assignment_id,
-                "name": "Mock Assignment",
-                "description": "<p>This is a mock assignment description.</p>",
-                "due_at": "2023-10-15T23:59:59Z",
-                "points_possible": 100,
-                "submission_types": ["online_upload"],
-                "course_id": course_id
-            }
-
-        try:
-            canvas = CanvasService.create_canvas_client(credentials)
-            course = canvas.get_course(course_id)
-            assignment = course.get_assignment(assignment_id)
-
-            return {
-                "id": assignment.id,
-                "name": assignment.name,
-                "description": getattr(assignment, "description", None),
-                "due_at": getattr(assignment, "due_at", None),
-                "points_possible": getattr(assignment, "points_possible", None),
-                "grading_type": getattr(assignment, "grading_type", None),
-                "submission_types": getattr(assignment, "submission_types", None),
-                "html_url": getattr(assignment, "html_url", None),
-                "published": getattr(assignment, "published", None),
-                "course_id": course_id
-            }
-        except CanvasException as error:
-            print(f'Error getting assignment details: {error}')
-            raise
-
-    @staticmethod
-    async def get_upcoming_assignments(credentials: Dict[str, str], course_id: int, days: int = 14) -> List[Dict[str, Any]]:
-        """Get upcoming assignments for a specific course"""
-        from datetime import datetime, timedelta
-
-        if CanvasService.is_mock_credentials(credentials):
-            today = datetime.now()
-            return [
-                {
-                    "id": 1001,
-                    "name": "Mock Assignment 1",
-                    "due_at": (today + timedelta(days=3)).isoformat(),
-                    "points_possible": 50
-                },
-                {
-                    "id": 1002,
-                    "name": "Mock Assignment 2",
-                    "due_at": (today + timedelta(days=7)).isoformat(),
-                    "points_possible": 75
-                },
-                {
-                    "id": 1003,
-                    "name": "Mock Assignment 3",
-                    "due_at": (today + timedelta(days=10)).isoformat(),
-                    "points_possible": 100
-                }
-            ]
-
-        try:
-            canvas = CanvasService.create_canvas_client(credentials)
-            course = canvas.get_course(course_id)
-
-            # Calculate date range
-            today = datetime.now()
-            end_date = today + timedelta(days=days)
-
-            # Get assignments due in the specified date range
-            assignments = course.get_assignments(bucket="upcoming")
-
-            upcoming_assignments = []
-            for assignment in assignments:
-                # Skip assignments without due dates
-                if not getattr(assignment, "due_at", None):
+                    formatted_courses.append(formatted_course)
+                except Exception as e:
+                    print(f"Error formatting course: {str(e)}")
                     continue
 
-                # Parse due date
-                due_date = datetime.fromisoformat(assignment.due_at.replace('Z', '+00:00'))
+            return formatted_courses
+        except Exception as e:
+            print(f"Error getting courses: {str(e)}")
+            return []
 
-                # Check if assignment is due within the specified range
-                if today <= due_date <= end_date:
-                    upcoming_assignments.append({
-                        "id": assignment.id,
-                        "name": assignment.name,
-                        "due_at": assignment.due_at,
-                        "points_possible": getattr(assignment, "points_possible", None),
-                        "html_url": getattr(assignment, "html_url", None)
-                    })
+    async def get_courses_from_firestore(self, user_id: str, status: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Get courses for a user directly from Firestore.
 
-            return upcoming_assignments
-        except CanvasException as error:
-            print(f'Error getting upcoming assignments: {error}')
-            raise
+        Args:
+            user_id: Firebase user ID
+            status: Optional status filter ('current' or 'past')
 
-# Create service instance
-canvas_service = CanvasService()
+        Returns:
+            List of courses from Firestore
+        """
+        try:
+            print(f"Getting courses from Firestore for user ID: {user_id}")
+            courses = await self.firestore_service.get_user_courses(user_id, status)
+
+            if not courses:
+                print(f"No courses found in Firestore for user {user_id}")
+                # Try to get courses from Canvas API as fallback
+                return await self.get_courses(user_id)
+
+            print(f"Retrieved {len(courses)} courses from Firestore")
+            return courses
+        except Exception as e:
+            print(f"Error getting courses from Firestore: {str(e)}")
+            return []

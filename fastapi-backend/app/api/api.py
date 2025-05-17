@@ -1,11 +1,14 @@
 from fastapi import APIRouter
-from app.api.endpoints import canvas, auth, course, assignment
 
-# Create API router
+from app.api.endpoints import chat, memory, canvas
+
 api_router = APIRouter()
 
-# Include endpoint routers
-api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+# Include chat endpoints
+api_router.include_router(chat.router, tags=["chat"])
+
+# Include memory endpoints
+api_router.include_router(memory.router, prefix="/memory", tags=["memory"])
+
+# Include Canvas endpoints
 api_router.include_router(canvas.router, prefix="/canvas", tags=["canvas"])
-api_router.include_router(course.router, prefix="/course", tags=["course"])
-api_router.include_router(assignment.router, prefix="/assignment", tags=["assignment"])
