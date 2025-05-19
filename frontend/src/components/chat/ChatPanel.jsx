@@ -119,10 +119,11 @@ export function ChatPanel({ isOpen, onClose, className }) {
   return (
     <div
       className={cn(
-        'fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l bg-[var(--background)] shadow-xl transition-transform duration-300 ease-in-out sm:max-w-md',
+        'fixed inset-y-0 right-0 z-[90] flex w-full flex-col border-l bg-[var(--background)] shadow-xl transition-transform duration-300 ease-in-out sm:max-w-md',
         isOpen ? 'translate-x-0' : 'translate-x-full',
         className
       )}
+      style={{ visibility: isOpen ? 'visible' : 'hidden' }}
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b px-4 py-3">

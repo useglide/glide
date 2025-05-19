@@ -15,11 +15,12 @@ export function ChatButton({ isOpen, onClick, className }) {
     <button
       onClick={onClick}
       className={cn(
-        'fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-sidebar-primary text-white shadow-lg transition-all hover:bg-sidebar-primary/90',
+        'fixed bottom-6 right-6 z-[100] flex h-14 w-14 items-center justify-center rounded-full bg-[var(--glide-blue)] text-white shadow-lg transition-all hover:bg-[var(--blue-accent-hover)]',
         isOpen && 'rotate-90 transform',
         className
       )}
       aria-label={isOpen ? 'Close chat' : 'Open chat'}
+      style={{ visibility: 'visible', opacity: 1 }}
     >
       {isOpen ? (
         <XIcon className="h-6 w-6" />

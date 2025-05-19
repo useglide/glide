@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ChatButton } from './ChatButton';
 import { ChatPanel } from './ChatPanel';
+import { ChatDebug } from './ChatDebug';
 
 /**
  * A component that combines the chat button and panel
@@ -33,6 +34,7 @@ export function Chat() {
 
   return (
     <>
+      <ChatDebug />
       <ChatButton isOpen={isOpen} onClick={toggleChat} />
       <ChatPanel isOpen={isOpen} onClose={closeChat} />
     </>
