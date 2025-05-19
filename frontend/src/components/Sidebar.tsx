@@ -78,7 +78,7 @@ export function Sidebar() {
 
   return (
     <aside className="bg-[var(--white-grey)] h-screen fixed left-0 top-0 flex flex-col w-60 z-40 shadow-sm">
-      <div className="p-6">
+      <div className="h-16 flex items-center px-6">
         <div className="text-[2rem] font-bold text-[var(--glide-blue)]">Glide</div>
       </div>
 

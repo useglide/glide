@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { PlusIcon, ChevronDownIcon, ChevronUpIcon, Settings, RefreshCw } from 'lucide-react';
+import { PlusIcon, ChevronDownIcon, ChevronUpIcon, Settings, RefreshCw, ArrowUpRight } from 'lucide-react';
 import { CourseSelectionModal } from './CourseSelectionModal';
 import { CourseSettingsModal } from './CourseSettingsModal';
 import { darkenColor, isLightColor } from '@/lib/utils';
 import { getTwoStageData, getDetailedCourseData } from '@/services/api';
+import { useRouter } from 'next/navigation';
 
 
 // Define the teacher interface
@@ -45,6 +46,9 @@ export function CurrentCourses({
   onRemoveCourse,
   onRefreshData
 }: CurrentCoursesProps) {
+  // Initialize router for navigation
+  const router = useRouter();
+
   // State to track whether to show all courses or just the first 5
   const [showAllCourses, setShowAllCourses] = useState(false);
   // State to control the course selection modal
@@ -297,6 +301,8 @@ function CourseCard({
   onOpenSettings: (course: Course) => void,
   customizedCourse?: Course | null
 }) {
+  // Initialize router for navigation
+  const router = useRouter();
   // Format the grade to show as a percentage
   const gradePercentage = course.grade !== null && course.grade !== undefined
     ? `${Math.round(course.grade)}%`
@@ -383,8 +389,9 @@ function CourseCard({
 
   return (
     <div
-      className={cardClassName}
+      className={`${cardClassName} cursor-pointer`}
       style={cardColor.startsWith('bg-') ? {} : { backgroundColor: cardColor }}
+      onClick={() => router.push(`/courses/${course.id}`)}
     >
       {/* Course code and settings icon */}
       <div className="flex justify-between items-start">
@@ -396,7 +403,10 @@ function CourseCard({
         </span>
         <button
           type="button"
-          onClick={() => onOpenSettings(course)}
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent card click from triggering
+            onOpenSettings(course);
+          }}
           className={`w-5 h-5 flex items-center justify-center ${secondaryTextColor} hover:${textColor} transition-colors cursor-pointer`}
           style={{ color: textColorStyle }}
           aria-label="Course settings"
@@ -423,20 +433,31 @@ function CourseCard({
         </p>
       )}
 
-      {/* Grade percentage */}
-      {gradePercentage && (
+      <div className="flex justify-between items-center mt-auto">
+        {/* View details link */}
         <div
-          className="self-end mt-2 px-3 py-1 rounded-md text-sm font-bold"
-          // regular style white background, black text
-          style={{
-            backgroundColor: 'var(--white-grey)',
-            // if color is light use dark text
-            color: textColorStyle === 'white' ? 'black' : textColorStyle  ,
-          }}
+          className={`flex items-center text-sm font-medium ${textColor}`}
+          style={{ color: textColorStyle }}
         >
-          {gradePercentage}
+          <span>View Details</span>
+          <ArrowUpRight className="ml-1 h-4 w-4" />
         </div>
-      )}
+
+        {/* Grade percentage */}
+        {gradePercentage && (
+          <div
+            className="px-3 py-1 rounded-md text-sm font-bold"
+            // regular style white background, black text
+            style={{
+              backgroundColor: 'var(--white-grey)',
+              // if color is light use dark text
+              color: textColorStyle === 'white' ? 'black' : textColorStyle,
+            }}
+          >
+            {gradePercentage}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -71,6 +71,30 @@ const canvasService = {
   },
 
   /**
+   * Get detailed information for a specific assignment
+   * @param {number} courseId - Course ID
+   * @param {number} assignmentId - Assignment ID
+   * @param {Object} options - Additional options
+   * @returns {Promise<Object>} Assignment details
+   */
+  getAssignmentDetails: async (courseId, assignmentId, options = {}) => {
+    const {
+      includeSubmission = true,
+      canvasUrl,
+      canvasApiKey
+    } = options;
+
+    let url = `/api/v1/courses/${courseId}/assignments/${assignmentId}`;
+
+    if (includeSubmission) url += '?include[]=submission';
+
+    return await fetchAllPages(url, {
+      canvasUrl,
+      canvasApiKey
+    });
+  },
+
+  /**
    * Get submissions for a specific assignment
    * @param {number} courseId - Course ID
    * @param {number} assignmentId - Assignment ID

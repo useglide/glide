@@ -27,23 +27,23 @@ export function Header({ title = 'Dashboard', onLogout }: HeaderProps) {
         <div className="flex items-center space-x-4">
           <h1 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">{title}</h1>
         </div>
-
-        <div className="flex items-center space-x-4">
+        <div className="flex-1 mx-4">
           {/* Search Command Menu Trigger */}
           <button
             type="button"
             onClick={triggerCommandMenu}
-            className="inline-flex items-center gap-1 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors px-3 py-2 rounded-md bg-[var(--white-grey)]"
+            className="w-full inline-flex items-center gap-1 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors px-3 py-2 rounded-md bg-[var(--white-grey)] cursor-pointer"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <span>Search...</span>
-            <kbd className="ml-2 pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-[var(--white-grey)] px-1.5 font-mono text-xs">
+            <kbd className="ml-2 cursor-pointer inline-flex h-5 select-none items-center gap-1 rounded border bg-[var(--white-grey)] px-1.5 font-mono text-xs">
               <span className="text-xs">⌘</span>K
             </kbd>
           </button>
-
+        </div>
+        <div className="flex items-center space-x-4">
           {/* User Profile Button */}
           <button
             type="button"

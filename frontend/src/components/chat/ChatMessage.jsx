@@ -28,7 +28,7 @@ export function ChatMessage({ content, isUser, className }) {
         className={cn(
           'max-w-[80%] rounded-lg px-4 py-2',
           isUser
-            ? 'bg-sidebar-primary text-white'
+            ? 'bg-sidebar-primary text-foreground'
             : 'bg-muted text-foreground'
         )}
       >

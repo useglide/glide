@@ -313,12 +313,11 @@ export default function Dashboard() {
         {/* Your Progress Section */}
         <YourProgress
           loading={detailedCourseData.loading}
-          currentGPA={3.78}
           previousGPA={3.75}
-          completedCredits={109}
           requiredCredits={120}
           upcomingDeadlines={5}
           dueThisWeek={3}
+          courses={detailedCourseData.data?.courses || []}
         />
       </div>
     </>

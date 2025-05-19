@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChatButton } from './ChatButton';
 import { ChatPanel } from './ChatPanel';
 
@@ -17,6 +17,19 @@ export function Chat() {
   const closeChat = () => {
     setIsOpen(false);
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Check for Command+I (Mac) or Ctrl+I (Windows)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
+        e.preventDefault(); // Prevent browser's default "Inspect" action
+        toggleChat();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]); // Re-run effect when isOpen changes to get the latest toggleChat function
 
   return (
     <>
