@@ -1,4 +1,5 @@
 const canvasService = require('../services/canvasService');
+const firebaseService = require('../services/firebaseService');
 const formatTime = require('../utils/formatTime');
 
 /**
@@ -14,6 +15,7 @@ const dashboardController = {
     try {
       const startTime = Date.now();
       const timings = {
+        credentials: { start: 0, end: 0, duration: 0 },
         courses: { start: 0, end: 0, duration: 0 },
         assignments: { start: 0, end: 0, duration: 0, byCourseDuration: {} },
         processing: { start: 0, end: 0, duration: 0 }
@@ -26,13 +28,32 @@ const dashboardController = {
         timing: {}
       };
 
+      // Get user ID from authenticated request
+      const { uid } = req.user;
+
+      // Get user's Canvas credentials from Firestore
+      timings.credentials.start = Date.now();
+      let credentials;
+      try {
+        credentials = await firebaseService.getCanvasCredentials(uid);
+      } catch (credError) {
+        console.error('Error getting Canvas credentials:', credError.message);
+        return res.status(401).json({
+          error: 'Canvas credentials not found. Please set up your Canvas credentials.',
+          timestamp: new Date().toISOString()
+        });
+      }
+      timings.credentials.end = Date.now();
+      timings.credentials.duration = timings.credentials.end - timings.credentials.start;
+
       // Get all active courses with all necessary parameters in a single request
       // This avoids multiple API calls for the same courses
       timings.courses.start = Date.now();
       const courses = await canvasService.getCourses({
         includeTerms: true,
         includeTeachers: true,
-        includeTotalScores: true
+        includeTotalScores: true,
+        ...credentials // Pass user-specific credentials
       });
       timings.courses.end = Date.now();
       timings.courses.duration = timings.courses.end - timings.courses.start;
@@ -83,7 +104,8 @@ const dashboardController = {
             dueAfter: pastCutoffStr,
             dueBefore: futureCutoffStr,
             orderBy: 'due_at',
-            perPage: 50
+            perPage: 50,
+            ...credentials // Pass user-specific credentials
           });
 
           // Add course information to each assignment
@@ -183,6 +205,11 @@ const dashboardController = {
         totalTimeSec: (totalTimeMs / 1000).toFixed(2),
         totalTimeFormatted: formatTime(totalTimeMs),
         breakdown: {
+          fetchCredentials: {
+            durationMs: timings.credentials.duration,
+            durationSec: (timings.credentials.duration / 1000).toFixed(2),
+            percentage: ((timings.credentials.duration / totalTimeMs) * 100).toFixed(1) + '%'
+          },
           fetchCourses: {
             durationMs: timings.courses.duration,
             durationSec: (timings.courses.duration / 1000).toFixed(2),
@@ -245,10 +272,32 @@ const dashboardController = {
         }
       };
 
+      // Get user ID from authenticated request
+      const { uid } = req.user;
+
+      // Get user's Canvas credentials from Firestore
+      const credentialsStartTime = Date.now();
+      let credentials;
+      try {
+        credentials = await firebaseService.getCanvasCredentials(uid);
+        allData.timing.sections.credentials = {
+          timeMs: Date.now() - credentialsStartTime,
+          timeSec: ((Date.now() - credentialsStartTime) / 1000).toFixed(2)
+        };
+      } catch (credError) {
+        console.error('Error getting Canvas credentials:', credError.message);
+        allData.errors.push({ endpoint: 'credentials', message: credError.message });
+        return res.status(401).json({
+          error: 'Canvas credentials not found. Please set up your Canvas credentials.',
+          timestamp: new Date().toISOString(),
+          errors: allData.errors
+        });
+      }
+
       // Fetch user info
       try {
         const userStartTime = Date.now();
-        allData.user = await canvasService.getUserInfo();
+        allData.user = await canvasService.getUserInfo(credentials);
         allData.accessibleData.user = true;
         allData.timing.sections.user = {
           timeMs: Date.now() - userStartTime,
@@ -263,7 +312,7 @@ const dashboardController = {
       let courses = [];
       try {
         const coursesStartTime = Date.now();
-        courses = await canvasService.getCourses();
+        courses = await canvasService.getCourses(credentials);
         allData.accessibleData.courses = true;
         allData.timing.sections.courses = {
           timeMs: Date.now() - coursesStartTime,
@@ -289,7 +338,7 @@ const dashboardController = {
 
             // Fetch assignments
             try {
-              const assignments = await canvasService.getCourseAssignments(courseId);
+              const assignments = await canvasService.getCourseAssignments(courseId, credentials);
               courseData.assignments = [];
               courseData.accessibleData.assignments = true;
 
@@ -298,7 +347,7 @@ const dashboardController = {
                 for (const assignment of assignments) {
                   try {
                     // Use silentErrors option to prevent console spam for expected 403s
-                    const submissions = await canvasService.getAssignmentSubmissions(courseId, assignment.id);
+                    const submissions = await canvasService.getAssignmentSubmissions(courseId, assignment.id, credentials);
 
                     courseData.assignments.push({
                       ...assignment,
@@ -321,7 +370,7 @@ const dashboardController = {
 
             // Fetch grades
             try {
-              courseData.grades = await canvasService.getCourseSubmissions(courseId);
+              courseData.grades = await canvasService.getCourseSubmissions(courseId, credentials);
               courseData.accessibleData.grades = true;
             } catch (error) {
               courseData.grades = [];
@@ -350,7 +399,9 @@ const dashboardController = {
       // Fetch announcements
       try {
         const announcementsStartTime = Date.now();
-        allData.announcements = await canvasService.getAnnouncements(courses);
+        allData.announcements = await canvasService.getAnnouncements(courses, {
+          ...credentials
+        });
         allData.accessibleData.announcements = true;
         allData.timing.sections.announcements = {
           timeMs: Date.now() - announcementsStartTime,
@@ -364,7 +415,7 @@ const dashboardController = {
       // Fetch calendar events
       try {
         const calendarStartTime = Date.now();
-        allData.calendarEvents = await canvasService.getCalendarEvents();
+        allData.calendarEvents = await canvasService.getCalendarEvents(credentials);
         allData.accessibleData.calendarEvents = true;
         allData.timing.sections.calendarEvents = {
           timeMs: Date.now() - calendarStartTime,
@@ -378,7 +429,7 @@ const dashboardController = {
       // Fetch todo items
       try {
         const todoStartTime = Date.now();
-        allData.todo = await canvasService.getTodoItems();
+        allData.todo = await canvasService.getTodoItems(credentials);
         allData.accessibleData.todo = true;
         allData.timing.sections.todo = {
           timeMs: Date.now() - todoStartTime,

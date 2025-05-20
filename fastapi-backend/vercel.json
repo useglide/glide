@@ -15,13 +15,5 @@
       "src": "/(.*)",
       "dest": "vercel_app.py"
     }
-  ],
-  "env": {
-    "EXPRESS_BACKEND_URL": "https://glide-jet.vercel.app",
-    "HOST": "0.0.0.0",
-    "PORT": "8000",
-    "DEBUG": "False",
-    "FIREBASE_PROJECT_ID": "glide-c7ef6",
-    "FIREBASE_AUTH_DISABLED": "True"
-  }
+  ]
 }
