@@ -10,6 +10,7 @@ const assignmentGradesRoutes = require('./assignmentGradesRoutes');
 const twoStageRoutes = require('./twoStageRoutes');
 const detailedCourseRoutes = require('./detailedCourseRoutes');
 const syncRoutes = require('./syncRoutes');
+const favoriteCoursesRoutes = require('./favoriteCoursesRoutes');
 
 const router = express.Router();
 
@@ -25,5 +26,6 @@ router.use('/', assignmentGradesRoutes);
 router.use('/', twoStageRoutes);
 router.use('/', detailedCourseRoutes);
 router.use('/', syncRoutes);
+router.use('/', favoriteCoursesRoutes);
 
 module.exports = router;

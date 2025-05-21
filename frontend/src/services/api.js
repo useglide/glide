@@ -47,7 +47,7 @@ const fetchWithAuth = async (url, options = {}) => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `API error: ${response.status}`);
+      throw new Error(errorData.error || errorData.detail || `API error: ${response.status}`);
     }
 
     return await response.json();
@@ -74,7 +74,7 @@ export const registerUser = async (userData) => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `Registration failed: ${response.status}`);
+      throw new Error(errorData.error || errorData.detail || `Registration failed: ${response.status}`);
     }
 
     return await response.json();
@@ -200,7 +200,7 @@ export const createClassFolders = async (userId, classNames, parentFolderId = nu
           };
         }
 
-        errorDetail = errorData.detail || `HTTP error ${response.status}`;
+        errorDetail = errorData.detail || errorData.error || `HTTP error ${response.status}`;
         console.error('Error response body:', errorData);
       } catch (parseError) {
         if (parseError.isGoogleAuthError) {
@@ -260,7 +260,7 @@ export const getTwoStageData = async (options = {}) => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `API error: ${response.status}`);
+      throw new Error(errorData.error || errorData.detail || `API error: ${response.status}`);
     }
 
     return await response.json();
@@ -308,7 +308,7 @@ export const getDetailedCourseData = async (options = {}) => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `API error: ${response.status}`);
+      throw new Error(errorData.error || errorData.detail || `API error: ${response.status}`);
     }
 
     return await response.json();
@@ -357,7 +357,7 @@ export const getAssignmentDetails = async (courseId, assignmentId, options = {})
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `API error: ${response.status}`);
+      throw new Error(errorData.error || errorData.detail || `API error: ${response.status}`);
     }
 
     return await response.json();
@@ -404,7 +404,7 @@ export const getFavoriteCourses = async (options = {}) => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `API error: ${response.status}`);
+      throw new Error(errorData.error || errorData.detail || `API error: ${response.status}`);
     }
 
     return await response.json();
