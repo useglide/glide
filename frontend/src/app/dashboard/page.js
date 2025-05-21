@@ -383,6 +383,24 @@ export default function Dashboard() {
       setRefreshingCache(true);
       setError('');
 
+      // Clear browser cache for API endpoints
+      if (typeof window !== 'undefined' && 'caches' in window) {
+        try {
+          // Try to clear the Next.js data cache
+          const cacheKeys = await window.caches.keys();
+          for (const key of cacheKeys) {
+            // Only clear caches that might contain API data
+            if (key.includes('next-data') || key.includes('api-cache')) {
+              await window.caches.delete(key);
+              console.log(`Cleared cache: ${key}`);
+            }
+          }
+          console.log('Cache cleared before refresh');
+        } catch (error) {
+          console.error('Error clearing cache:', error);
+        }
+      }
+
       // Reset cache status
       stage1CachedRef.current = false;
       stage2CachedRef.current = false;
@@ -390,12 +408,13 @@ export default function Dashboard() {
 
       // Set loading state
       setTwoStageData(prev => ({ ...prev, loading: true, error: null }));
-      setDetailedCourseData(prev => ({ ...prev, loading: false, error: null }));
+      setDetailedCourseData(prev => ({ ...prev, loading: true, error: null }));
 
       console.log('Refreshing cache by bypassing browser cache...');
 
       // Fetch data with cache bypassing
       const data = await getTwoStageData({ bypassCache: true });
+      console.log('Two-stage data refreshed successfully:', data);
 
       // Update the data and mark both stages as cached
       setTwoStageData(prev => ({
@@ -408,45 +427,46 @@ export default function Dashboard() {
       stage1CachedRef.current = true;
       stage2CachedRef.current = true;
 
-      console.log('Two-stage cache refreshed successfully:', data);
-
       // Now fetch detailed course data
       console.log('Refreshing detailed course data...');
       const detailedData = await getDetailedCourseData({ bypassCache: true });
+      console.log('Detailed course data refreshed successfully:', detailedData);
+
+      // Update the detailed course data state
+      setDetailedCourseData(prev => ({
+        ...prev,
+        loading: false,
+        data: detailedData
+      }));
 
       // Mark detailed data as cached
       detailedDataCachedRef.current = true;
 
-      console.log('Detailed course data refreshed successfully:', detailedData);
-
-      // Log the structure of assignments to check if we have upcoming assignments
-      if (detailedData && detailedData.assignments) {
-        console.log('Refreshed assignments structure:', Object.keys(detailedData.assignments));
-        if (detailedData.assignments.upcoming) {
-          console.log('Refreshed upcoming assignments sample:', detailedData.assignments.upcoming.slice(0, 2));
-        }
-      }
+      // Force a re-render of the components that use this data
+      // by creating a new reference for the data objects
+      setTwoStageData(prev => ({ ...prev, data: { ...prev.data } }));
+      setDetailedCourseData(prev => ({ ...prev, data: { ...prev.data } }));
 
       // Show success message
-      setError('Cache refreshed successfully!');
+      setError('Data refreshed successfully!');
 
       // Clear success message after 3 seconds
       setTimeout(() => {
         setError('');
       }, 3000);
     } catch (err) {
-      console.error('Failed to refresh cache:', err);
+      console.error('Failed to refresh data:', err);
       setTwoStageData(prev => ({
         ...prev,
         loading: false,
-        error: err.message || 'Failed to refresh cache'
+        error: err.message || 'Failed to refresh data'
       }));
       setDetailedCourseData(prev => ({
         ...prev,
         loading: false,
-        error: err.message || 'Failed to refresh cache'
+        error: err.message || 'Failed to refresh data'
       }));
-      setError('Failed to refresh cache: ' + (err.message || 'Unknown error'));
+      setError('Failed to refresh data: ' + (err.message || 'Unknown error'));
     } finally {
       setRefreshingCache(false);
     }

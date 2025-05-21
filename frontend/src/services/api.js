@@ -233,15 +233,22 @@ export const getTwoStageData = async (options = {}) => {
 
   try {
     const token = await getIdToken();
+    const user = auth.currentUser;
 
-    // Add a cache buster parameter if bypassCache is true
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    // Add user ID and timestamp to URL to ensure unique cache per user
     const url = joinUrl(API_URL, 'two-stage-data');
-    const urlWithCacheBuster = bypassCache
-      ? `${url}?_=${Date.now()}`
-      : url;
+    const urlWithUserAndCache = bypassCache
+      ? `${url}?uid=${user.uid}&_=${Date.now()}`
+      : `${url}?uid=${user.uid}`;
+
+    console.log(`Fetching two-stage data for user: ${user.uid}`);
 
     // Use the cache option to enable browser caching
-    const response = await fetch(urlWithCacheBuster, {
+    const response = await fetch(urlWithUserAndCache, {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
@@ -274,15 +281,22 @@ export const getDetailedCourseData = async (options = {}) => {
 
   try {
     const token = await getIdToken();
+    const user = auth.currentUser;
 
-    // Add a cache buster parameter if bypassCache is true
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    // Add user ID and timestamp to URL to ensure unique cache per user
     const url = joinUrl(API_URL, 'courses/detailed');
-    const urlWithCacheBuster = bypassCache
-      ? `${url}?_=${Date.now()}`
-      : url;
+    const urlWithUserAndCache = bypassCache
+      ? `${url}?uid=${user.uid}&_=${Date.now()}`
+      : `${url}?uid=${user.uid}`;
+
+    console.log(`Fetching detailed course data for user: ${user.uid}`);
 
     // Use the cache option to enable browser caching
-    const response = await fetch(urlWithCacheBuster, {
+    const response = await fetch(urlWithUserAndCache, {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
@@ -316,15 +330,22 @@ export const getAssignmentDetails = async (courseId, assignmentId, options = {})
 
   try {
     const token = await getIdToken();
+    const user = auth.currentUser;
 
-    // Add a cache buster parameter if bypassCache is true
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    // Add user ID and timestamp to URL to ensure unique cache per user
     const url = joinUrl(API_URL, `courses/${courseId}/assignments/${assignmentId}/details`);
-    const urlWithCacheBuster = bypassCache
-      ? `${url}?_=${Date.now()}`
-      : url;
+    const urlWithUserAndCache = bypassCache
+      ? `${url}?uid=${user.uid}&_=${Date.now()}`
+      : `${url}?uid=${user.uid}`;
+
+    console.log(`Fetching assignment details for user: ${user.uid}, course: ${courseId}, assignment: ${assignmentId}`);
 
     // Use the cache option to enable browser caching
-    const response = await fetch(urlWithCacheBuster, {
+    const response = await fetch(urlWithUserAndCache, {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`

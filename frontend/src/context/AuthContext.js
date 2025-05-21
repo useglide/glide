@@ -1,10 +1,10 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  signOut, 
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
   onAuthStateChanged,
   signInWithCustomToken
 } from 'firebase/auth';
@@ -48,7 +48,28 @@ export const AuthContextProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    // Clear user state
     setUser(null);
+
+    // Clear any cached data by invalidating the cache
+    if (typeof window !== 'undefined' && 'caches' in window) {
+      try {
+        // Try to clear the Next.js data cache
+        const cacheKeys = await window.caches.keys();
+        for (const key of cacheKeys) {
+          // Only clear caches that might contain user data
+          if (key.includes('next-data') || key.includes('api-cache')) {
+            await window.caches.delete(key);
+            console.log(`Cleared cache: ${key}`);
+          }
+        }
+        console.log('Cache cleared on logout');
+      } catch (error) {
+        console.error('Error clearing cache:', error);
+      }
+    }
+
+    // Sign out from Firebase
     await signOut(auth);
   };
 

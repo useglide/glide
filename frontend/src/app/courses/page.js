@@ -72,6 +72,24 @@ export default function CoursesPage() {
       setRefreshingCache(true);
       setError('');
 
+      // Clear browser cache for API endpoints
+      if (typeof window !== 'undefined' && 'caches' in window) {
+        try {
+          // Try to clear the Next.js data cache
+          const cacheKeys = await window.caches.keys();
+          for (const key of cacheKeys) {
+            // Only clear caches that might contain API data
+            if (key.includes('next-data') || key.includes('api-cache')) {
+              await window.caches.delete(key);
+              console.log(`Cleared cache: ${key}`);
+            }
+          }
+          console.log('Cache cleared before refresh');
+        } catch (error) {
+          console.error('Error clearing cache:', error);
+        }
+      }
+
       // Reset cache status
       detailedDataCachedRef.current = false;
 
@@ -90,6 +108,9 @@ export default function CoursesPage() {
 
       // Mark detailed data as cached
       detailedDataCachedRef.current = true;
+
+      // Force a re-render by creating a new reference for the data object
+      setDetailedCourseData(prev => ({ ...prev, data: { ...prev.data } }));
 
       console.log('Detailed course data refreshed successfully:', detailedData);
 
