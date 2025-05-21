@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     FIREBASE_PROJECT_ID: str = "glide-c7ef6"
     FIREBASE_AUTH_DISABLED: bool = False
     FIREBASE_SERVICE_ACCOUNT_KEY: Optional[Dict[str, Any]] = None
+    FIREBASE_DATABASE_URL: Optional[str] = None
 
     # Gemini API settings
     GEMINI_API_KEY: Optional[str] = None

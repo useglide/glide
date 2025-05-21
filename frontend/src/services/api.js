@@ -143,6 +143,87 @@ export const ensureUserHasCourses = async () => {
 };
 
 /**
+ * Create folders for user's enrolled classes
+ * @param {string} userId - User ID
+ * @param {Array<string>} classNames - List of class names to create folders for
+ * @param {string} parentFolderId - Optional parent folder ID
+ * @returns {Promise<Object>} Result of folder creation
+ */
+export const createClassFolders = async (userId, classNames, parentFolderId = null) => {
+  const GENOA_API_URL = process.env.NEXT_PUBLIC_GENOA_API_URL || 'http://localhost:8000/api';
+  // Make sure we're using the correct API version path
+  const apiUrl = GENOA_API_URL.endsWith('/v1') ? GENOA_API_URL : `${GENOA_API_URL}/v1`;
+
+  console.log('createClassFolders called with:', { userId, classNames, parentFolderId });
+  console.log('Using API URL:', apiUrl);
+
+  try {
+    const token = await getIdToken();
+    console.log('Got ID token for authentication');
+
+    const requestBody = {
+      user_id: userId,
+      class_names: classNames,
+      parent_folder_id: parentFolderId
+    };
+    console.log('Request body:', requestBody);
+
+    console.log(`Sending POST request to ${apiUrl}/folders/create-class-folders`);
+    const response = await fetch(`${apiUrl}/folders/create-class-folders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    console.log('Response status:', response.status);
+
+    if (!response.ok) {
+      let errorDetail = 'Unknown error';
+      let errorData;
+
+      try {
+        errorData = await response.json();
+
+        // Check if this is a Google authentication required error
+        if (response.status === 401 &&
+            typeof errorData.detail === 'object' &&
+            errorData.detail.error_type === 'google_auth_required') {
+
+          // Return a special error object with auth_url that can be handled by the caller
+          throw {
+            isGoogleAuthError: true,
+            message: errorData.detail.message || 'Google authentication required',
+            auth_url: errorData.detail.auth_url
+          };
+        }
+
+        errorDetail = errorData.detail || `HTTP error ${response.status}`;
+        console.error('Error response body:', errorData);
+      } catch (parseError) {
+        if (parseError.isGoogleAuthError) {
+          // Re-throw the special Google auth error
+          throw parseError;
+        }
+        console.error('Could not parse error response:', parseError);
+        errorDetail = `Failed to create class folders: ${response.status}`;
+      }
+
+      throw new Error(errorDetail);
+    }
+
+    const result = await response.json();
+    console.log('Success response:', result);
+    return result;
+  } catch (error) {
+    console.error('Failed to create class folders:', error);
+    throw error;
+  }
+};
+
+/**
  * Get data from the two-stage endpoint with browser caching
  * @param {Object} options - Options for the request
  * @returns {Promise<Object>} Two-stage data

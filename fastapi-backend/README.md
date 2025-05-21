@@ -35,9 +35,12 @@ HOST=0.0.0.0
 PORT=8000
 DEBUG=True
 FIREBASE_PROJECT_ID=glide-c7ef6
+FIREBASE_DATABASE_URL=https://glide-c7ef6-default-rtdb.firebaseio.com  # Your Firebase Realtime Database URL
 FIREBASE_AUTH_DISABLED=True  # Set to False in production
 GEMINI_API_KEY=your-gemini-api-key
 FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account",...}  # Your Firebase service account JSON
+GOOGLE_CREDENTIALS_JSON={"installed":{"client_id":"...","client_secret":"...",...}}  # Your Google OAuth credentials
+GOOGLE_REDIRECT_URI=http://localhost:3000/google-auth-callback  # Your OAuth redirect URI
 ```
 
 ### Running the Application
@@ -86,8 +89,12 @@ vercel
      - `PORT`: 8000
      - `DEBUG`: False
      - `FIREBASE_PROJECT_ID`: glide-c7ef6
+     - `FIREBASE_DATABASE_URL`: Your Firebase Realtime Database URL (e.g., https://glide-c7ef6-default-rtdb.firebaseio.com)
      - `FIREBASE_AUTH_DISABLED`: True
      - `GEMINI_API_KEY`: Your Gemini API key
+     - `GOOGLE_CREDENTIALS_JSON`: Your Google OAuth credentials JSON
+     - `GOOGLE_REDIRECT_URI`: Your OAuth redirect URI
+     - `FIREBASE_SERVICE_ACCOUNT_KEY`: Your Firebase service account JSON
 
 5. Configure the frontend to use your deployed FastAPI backend:
    - Update the `NEXT_PUBLIC_GENOA_API_URL` environment variable in your frontend project to point to your deployed FastAPI backend URL.

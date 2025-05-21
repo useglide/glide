@@ -4,6 +4,7 @@ from typing import Optional, Dict, List
 
 # Third-party imports
 from firebase_admin import db
+from googleapiclient.discovery import build
 
 # Local imports
 from app.services.google.base_google_service import BaseGoogleService
@@ -209,69 +210,238 @@ class GoogleDriveService(BaseGoogleService):
             bool: True if successful, False otherwise
         """
         try:
+            print(f"Creating semester folders for user {self.user_id} with {len(class_names)} classes")
+
             if not self.user_id:
+                print("Error: No user ID provided")
                 return False
+
+            if not class_names or len(class_names) == 0:
+                print("Error: No class names provided")
+                return False
+
+            if not self.drive_service:
+                print("Error: Google Drive service not initialized")
+                if not self.credentials:
+                    print("Error: No Google credentials available")
+                    return False
+                try:
+                    self.drive_service = build('drive', 'v3', credentials=self.credentials)
+                    print("Successfully initialized Google Drive service")
+                except Exception as drive_error:
+                    print(f"Error initializing Google Drive service: {str(drive_error)}")
+                    return False
 
             # If no parent folder provided, get the user's root folder from Firebase
             if not parent_folder_id:
-                user_ref = db.reference(f'users/{self.user_id}')
-                user_data = user_ref.get()
-                if not user_data or 'google_parent_folder' not in user_data:
-                    return False
-                parent_folder_id = user_data['google_parent_folder']
+                print("No parent folder ID provided, looking up from Firebase")
+                try:
+                    user_ref = db.reference(f'users/{self.user_id}')
+                    user_data = user_ref.get()
+
+                    if not user_data:
+                        print(f"No user data found in Firebase for user {self.user_id}")
+                        # Create a root folder in Google Drive
+                        print("Creating root folder in Google Drive")
+                        root_folder = self.drive_service.files().create(
+                            body={
+                                'name': 'Glide Folders',
+                                'mimeType': 'application/vnd.google-apps.folder'
+                            },
+                            fields='id'
+                        ).execute()
+
+                        parent_folder_id = root_folder.get('id')
+
+                        # Save the root folder ID to Firebase
+                        if user_ref:
+                            user_ref.update({'google_parent_folder': parent_folder_id})
+                            print(f"Saved root folder ID {parent_folder_id} to Firebase")
+                    elif 'google_parent_folder' not in user_data:
+                        print("No google_parent_folder found in user data")
+                        # Create a root folder in Google Drive
+                        print("Creating root folder in Google Drive")
+                        root_folder = self.drive_service.files().create(
+                            body={
+                                'name': 'Glide Folders',
+                                'mimeType': 'application/vnd.google-apps.folder'
+                            },
+                            fields='id'
+                        ).execute()
+
+                        parent_folder_id = root_folder.get('id')
+
+                        # Save the root folder ID to Firebase
+                        user_ref.update({'google_parent_folder': parent_folder_id})
+                        print(f"Saved root folder ID {parent_folder_id} to Firebase")
+                    else:
+                        parent_folder_id = user_data['google_parent_folder']
+                        print(f"Found parent folder ID in Firebase: {parent_folder_id}")
+                except Exception as firebase_error:
+                    print(f"Error accessing Firebase: {str(firebase_error)}")
+                    # Create a root folder in Google Drive as fallback
+                    try:
+                        print("Creating root folder in Google Drive as fallback")
+                        root_folder = self.drive_service.files().create(
+                            body={
+                                'name': 'Glide Folders',
+                                'mimeType': 'application/vnd.google-apps.folder'
+                            },
+                            fields='id'
+                        ).execute()
+
+                        parent_folder_id = root_folder.get('id')
+                    except Exception as drive_error:
+                        print(f"Error creating root folder: {str(drive_error)}")
+                        return False
+
+            if not parent_folder_id:
+                print("Error: Could not determine parent folder ID")
+                return False
+
+            print(f"Using parent folder ID: {parent_folder_id}")
 
             # Create semester folder
             current_date = datetime.now()
             semester = 'Spring' if current_date.month < 7 else 'Fall'
             semester_name = f"{semester} {current_date.year}"
+            print(f"Creating semester folder: {semester_name}")
 
-            semester_metadata = {
-                'name': semester_name,
-                'mimeType': 'application/vnd.google-apps.folder',
-                'parents': [parent_folder_id]
-            }
+            # Check if semester folder already exists
+            try:
+                query = f"name='{semester_name}' and mimeType='application/vnd.google-apps.folder' and '{parent_folder_id}' in parents and trashed=false"
+                results = self.drive_service.files().list(
+                    q=query,
+                    spaces='drive',
+                    fields='files(id, name)'
+                ).execute()
 
-            semester_folder = self.drive_service.files().create(
-                body=semester_metadata,
-                fields='id'
-            ).execute()
+                existing_folders = results.get('files', [])
 
-            semester_folder_id = semester_folder.get('id')
+                if existing_folders:
+                    print(f"Found existing semester folder: {existing_folders[0]['name']} with ID: {existing_folders[0]['id']}")
+                    semester_folder_id = existing_folders[0]['id']
+                else:
+                    # Create new semester folder
+                    semester_metadata = {
+                        'name': semester_name,
+                        'mimeType': 'application/vnd.google-apps.folder',
+                        'parents': [parent_folder_id]
+                    }
+
+                    semester_folder = self.drive_service.files().create(
+                        body=semester_metadata,
+                        fields='id'
+                    ).execute()
+
+                    semester_folder_id = semester_folder.get('id')
+                    print(f"Created new semester folder with ID: {semester_folder_id}")
+            except Exception as folder_error:
+                print(f"Error checking/creating semester folder: {str(folder_error)}")
+                # Try to create the folder anyway
+                try:
+                    semester_metadata = {
+                        'name': semester_name,
+                        'mimeType': 'application/vnd.google-apps.folder',
+                        'parents': [parent_folder_id]
+                    }
+
+                    semester_folder = self.drive_service.files().create(
+                        body=semester_metadata,
+                        fields='id'
+                    ).execute()
+
+                    semester_folder_id = semester_folder.get('id')
+                    print(f"Created new semester folder with ID: {semester_folder_id}")
+                except Exception as create_error:
+                    print(f"Error creating semester folder: {str(create_error)}")
+                    return False
+
+            if not semester_folder_id:
+                print("Error: Failed to get or create semester folder")
+                return False
 
             # Create folders for each class
             created_folders = []
             for class_name in class_names:
                 try:
-                    # Create main class folder
-                    folder_metadata = {
-                        'name': class_name,
-                        'mimeType': 'application/vnd.google-apps.folder',
-                        'parents': [semester_folder_id]
-                    }
+                    print(f"Creating folder for class: {class_name}")
 
-                    folder = self.drive_service.files().create(
-                        body=folder_metadata,
-                        fields='id'
+                    # Check if class folder already exists
+                    query = f"name='{class_name}' and mimeType='application/vnd.google-apps.folder' and '{semester_folder_id}' in parents and trashed=false"
+                    results = self.drive_service.files().list(
+                        q=query,
+                        spaces='drive',
+                        fields='files(id, name)'
                     ).execute()
 
-                    folder_id = folder.get('id')
+                    existing_folders = results.get('files', [])
 
-                    # Create Notes subfolder
-                    notes_metadata = {
-                        'name': 'Notes',
-                        'mimeType': 'application/vnd.google-apps.folder',
-                        'parents': [folder_id]
-                    }
+                    if existing_folders:
+                        print(f"Found existing class folder: {existing_folders[0]['name']} with ID: {existing_folders[0]['id']}")
+                        folder_id = existing_folders[0]['id']
 
-                    notes_folder = self.drive_service.files().create(
-                        body=notes_metadata,
-                        fields='id'
-                    ).execute()
+                        # Check if Notes subfolder exists
+                        query = f"name='Notes' and mimeType='application/vnd.google-apps.folder' and '{folder_id}' in parents and trashed=false"
+                        results = self.drive_service.files().list(
+                            q=query,
+                            spaces='drive',
+                            fields='files(id, name)'
+                        ).execute()
 
-                    notes_folder_id = notes_folder.get('id')
+                        existing_notes = results.get('files', [])
+
+                        if existing_notes:
+                            print(f"Found existing Notes folder with ID: {existing_notes[0]['id']}")
+                            notes_folder_id = existing_notes[0]['id']
+                        else:
+                            # Create Notes subfolder
+                            notes_metadata = {
+                                'name': 'Notes',
+                                'mimeType': 'application/vnd.google-apps.folder',
+                                'parents': [folder_id]
+                            }
+
+                            notes_folder = self.drive_service.files().create(
+                                body=notes_metadata,
+                                fields='id'
+                            ).execute()
+
+                            notes_folder_id = notes_folder.get('id')
+                            print(f"Created new Notes folder with ID: {notes_folder_id}")
+                    else:
+                        # Create main class folder
+                        folder_metadata = {
+                            'name': class_name,
+                            'mimeType': 'application/vnd.google-apps.folder',
+                            'parents': [semester_folder_id]
+                        }
+
+                        folder = self.drive_service.files().create(
+                            body=folder_metadata,
+                            fields='id'
+                        ).execute()
+
+                        folder_id = folder.get('id')
+                        print(f"Created new class folder with ID: {folder_id}")
+
+                        # Create Notes subfolder
+                        notes_metadata = {
+                            'name': 'Notes',
+                            'mimeType': 'application/vnd.google-apps.folder',
+                            'parents': [folder_id]
+                        }
+
+                        notes_folder = self.drive_service.files().create(
+                            body=notes_metadata,
+                            fields='id'
+                        ).execute()
+
+                        notes_folder_id = notes_folder.get('id')
+                        print(f"Created new Notes folder with ID: {notes_folder_id}")
 
                     # Save folder info to Firebase with both IDs
-                    self._save_semester_folder_info(
+                    saved = self._save_semester_folder_info(
                         semester_name=semester_name,
                         class_name=class_name,
                         folder_data={
@@ -280,16 +450,23 @@ class GoogleDriveService(BaseGoogleService):
                         }
                     )
 
+                    if saved:
+                        print(f"Saved folder info to Firebase for class: {class_name}")
+                    else:
+                        print(f"Failed to save folder info to Firebase for class: {class_name}")
+
                     created_folders.append(folder_id)
 
                 except Exception as e:
-                    print(f'Error creating folder for {class_name}: {e}')
+                    print(f'Error creating folder for {class_name}: {str(e)}')
                     continue
 
-            return len(created_folders) > 0
+            success = len(created_folders) > 0
+            print(f"Created {len(created_folders)} folders out of {len(class_names)} classes")
+            return success
 
         except Exception as e:
-            print(f"Error creating semester folders: {e}")
+            print(f"Error creating semester folders: {str(e)}")
             return False
 
     def _save_semester_folder_info(self, semester_name: str, class_name: str, folder_data: dict):
@@ -306,24 +483,47 @@ class GoogleDriveService(BaseGoogleService):
         """
         try:
             if not self.user_id:
+                print("Error: No user ID provided")
                 return False
 
-            # Create a reference to the semester folders
-            semester_ref = db.reference(f'users/{self.user_id}/semesters/{semester_name}/folders')
+            if not semester_name:
+                print("Error: No semester name provided")
+                return False
 
-            # Create a unique key for the folder
-            folder_key = class_name.replace('.', '_').replace('/', '_').replace(' ', '_')
+            if not class_name:
+                print("Error: No class name provided")
+                return False
 
-            # Store folder information with notes folder ID
-            semester_ref.child(folder_key).set({
-                'name': class_name,
-                'folder_id': folder_data['folder_id'],
-                'notes_folder_id': folder_data['notes_folder_id'],
-                'created_at': datetime.now().isoformat()
-            })
+            if not folder_data or 'folder_id' not in folder_data or 'notes_folder_id' not in folder_data:
+                print("Error: Missing folder data")
+                return False
 
-            return True
+            print(f"Saving folder info for class {class_name} in semester {semester_name}")
+
+            try:
+                # Create a reference to the semester folders
+                semester_ref = db.reference(f'users/{self.user_id}/semesters/{semester_name}/folders')
+
+                # Create a unique key for the folder
+                folder_key = class_name.replace('.', '_').replace('/', '_').replace(' ', '_')
+
+                # Store folder information with notes folder ID
+                folder_info = {
+                    'name': class_name,
+                    'folder_id': folder_data['folder_id'],
+                    'notes_folder_id': folder_data['notes_folder_id'],
+                    'created_at': datetime.now().isoformat()
+                }
+
+                semester_ref.child(folder_key).set(folder_info)
+                print(f"Successfully saved folder info to Firebase: {folder_info}")
+
+                return True
+            except Exception as db_error:
+                print(f"Error accessing Firebase database: {str(db_error)}")
+                print("Make sure FIREBASE_DATABASE_URL is set correctly in your environment variables")
+                return False
 
         except Exception as e:
-            print(f"Error saving semester folder info: {e}")
+            print(f"Error saving semester folder info: {str(e)}")
             return False

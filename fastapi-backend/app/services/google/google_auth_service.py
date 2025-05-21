@@ -64,7 +64,14 @@ class GoogleAuthService(BaseGoogleService):
             if not flow:
                 return None
 
-            auth_url, _ = flow.authorization_url(prompt='consent')
+            # Always use 'consent' prompt to ensure we get a refresh token
+            # Also include 'access_type=offline' to get a refresh token
+            auth_url, _ = flow.authorization_url(
+                prompt='consent',
+                access_type='offline',
+                include_granted_scopes='true'
+            )
+            print(f"Generated authorization URL with prompt=consent and access_type=offline")
             return auth_url
         except Exception as e:
             print(f"Error getting authorization URL: {str(e)}")
@@ -81,6 +88,10 @@ class GoogleAuthService(BaseGoogleService):
             bool: True if authentication was successful, False otherwise
         """
         try:
+            if not code:
+                print("Error: No authorization code provided")
+                return False
+
             print(f"Starting auth callback with code: {code[:10]}...") # Only show first 10 chars for security
 
             # Create OAuth flow
@@ -97,14 +108,29 @@ class GoogleAuthService(BaseGoogleService):
                 print("Successfully fetched token")
             except Exception as token_error:
                 print(f"Error fetching token: {str(token_error)}")
+                print("This could be due to an invalid or expired authorization code, or a redirect URI mismatch")
                 return False
 
             # Get credentials from flow
             credentials = flow.credentials
 
+            # Verify that we have all required fields
+            required_attrs = ['token', 'refresh_token', 'token_uri', 'client_id', 'client_secret', 'scopes']
+            missing_attrs = [attr for attr in required_attrs if not hasattr(credentials, attr) or getattr(credentials, attr) is None]
+
+            if missing_attrs:
+                print(f"Error: Missing required credential attributes: {missing_attrs}")
+                if 'refresh_token' in missing_attrs:
+                    print("Missing refresh_token. Make sure you're using 'consent' prompt in the authorization URL")
+                return False
+
             # Save credentials and reinitialize services
             saved = self._save_credentials_to_firebase(credentials)
             print(f"Saved credentials to Firebase: {saved}")
+
+            if not saved:
+                print("Failed to save credentials to Firebase")
+                return False
 
             self.credentials = credentials
             self._initialize_services()
@@ -134,6 +160,31 @@ class GoogleAuthService(BaseGoogleService):
 
             # Get redirect URI from environment or use default
             redirect_uri = os.getenv('GOOGLE_REDIRECT_URI', 'http://127.0.0.1:5000/google-auth-callback')
+            print(f"Redirect URI from environment: {redirect_uri}")
+
+            # Check if we're in development mode (DEBUG=True)
+            from app.core.config import settings
+            if settings.DEBUG:
+                # Use localhost redirect URI for development
+                redirect_uri = 'http://localhost:8000/api/v1/google/callback'
+                print(f"DEBUG mode detected, using development redirect URI: {redirect_uri}")
+
+            # Print the authorized redirect URIs from the credentials
+            if 'web' in creds_dict and 'redirect_uris' in creds_dict['web']:
+                print(f"Authorized redirect URIs in credentials: {creds_dict['web']['redirect_uris']}")
+            elif 'installed' in creds_dict and 'redirect_uris' in creds_dict['installed']:
+                print(f"Authorized redirect URIs in credentials: {creds_dict['installed']['redirect_uris']}")
+
+            # Determine if we have web or installed application credentials
+            if 'web' in creds_dict:
+                client_type = 'web'
+            elif 'installed' in creds_dict:
+                client_type = 'installed'
+            else:
+                print("Error: Invalid GOOGLE_CREDENTIALS_JSON format - missing web or installed section")
+                return None
+
+            print(f"Creating OAuth flow with {client_type} credentials and redirect URI: {redirect_uri}")
 
             # Create flow with proper client configuration and redirect URI
             return Flow.from_client_config(

@@ -4,6 +4,8 @@ import { auth } from '../config/firebase';
 
 // Get the API URL from environment variables
 const GENOA_API_URL = process.env.NEXT_PUBLIC_GENOA_API_URL || 'http://localhost:8000/api';
+// Make sure we're using the correct API version path
+const API_URL = GENOA_API_URL.endsWith('/v1') ? GENOA_API_URL : `${GENOA_API_URL}/v1`;
 
 /**
  * Get the current user's ID token for authentication
@@ -50,7 +52,7 @@ export const sendChatMessage = async (message, conversationId = null) => {
     }
 
     // Send the request to the Gemini-powered chat endpoint
-    const response = await fetch(`${GENOA_API_URL}/v1/chat`, {
+    const response = await fetch(`${API_URL}/chat`, {
       method: 'POST',
       headers: headers,
       body: JSON.stringify(requestBody)
@@ -117,7 +119,7 @@ export const getChatHistory = async (conversationId) => {
     }
 
     // Send the request to the memory API
-    const response = await fetch(`${GENOA_API_URL}/v1/memory/${conversationId}`, {
+    const response = await fetch(`${API_URL}/memory/${conversationId}`, {
       method: 'GET',
       headers: headers
     });
@@ -170,7 +172,7 @@ export const clearChatHistory = async (conversationId) => {
     }
 
     // Send the request to the memory API
-    const response = await fetch(`${GENOA_API_URL}/v1/memory/${conversationId}/clear`, {
+    const response = await fetch(`${API_URL}/memory/${conversationId}/clear`, {
       method: 'POST',
       headers: headers
     });

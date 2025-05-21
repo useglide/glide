@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import HTMLResponse
 from typing import Dict, Any, Optional
 
 from app.models.google_auth import (
@@ -10,7 +11,7 @@ from app.models.google_auth import (
     GoogleAuthStatusResponse
 )
 from app.services.google.google_auth_service import GoogleAuthService
-from app.core.security import get_current_user, optional_auth
+from app.core.security import get_current_user
 
 router = APIRouter()
 
@@ -66,6 +67,156 @@ async def get_google_auth_url(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while generating the Google authorization URL."
         )
+
+
+@router.get("/callback", status_code=status.HTTP_200_OK)
+async def handle_google_auth_callback_get(
+    code: str,
+    state: Optional[str] = None,
+    error: Optional[str] = None,
+    request: Request = None
+):
+    """
+    Handle Google OAuth callback after user authorization (GET endpoint).
+    This endpoint is called by Google OAuth after the user authorizes the application.
+
+    Args:
+        code: Authorization code from Google OAuth
+        state: Optional state parameter
+        error: Optional error parameter
+        request: FastAPI request object
+
+    Returns:
+        HTML page that redirects to the frontend
+    """
+    try:
+        # Print detailed information about the request
+        print(f"Google OAuth callback received at URL: {request.url}")
+        print(f"Full request URL: {request.url}")
+        print(f"Request headers: {dict(request.headers)}")
+        print(f"Query parameters: {dict(request.query_params)}")
+
+        if error:
+            print(f"Error in Google OAuth callback: {error}")
+            # Communicate error to parent window or redirect
+            html_content = f"""
+            <!DOCTYPE html>
+            <html>
+                <head>
+                    <title>Authentication Error</title>
+                    <script>
+                        window.onload = function() {{
+                            // Check if this window was opened by another window
+                            if (window.opener && !window.opener.closed) {{
+                                // Pass the error to the parent window
+                                window.opener.postMessage({{ type: 'GOOGLE_AUTH_ERROR', error: '{error}' }}, '*');
+                                // Close this window
+                                window.close();
+                            }} else {{
+                                // Fallback to redirect if this is not a popup
+                                window.location.href = '/dashboard?error={error}';
+                            }}
+                        }};
+                    </script>
+                </head>
+                <body>
+                    <p>Authentication failed. You can close this window and return to the application.</p>
+                </body>
+            </html>
+            """
+            return HTMLResponse(content=html_content)
+
+        if not code:
+            print("Error: No authorization code provided in callback")
+            # Communicate error to parent window or redirect
+            html_content = """
+            <!DOCTYPE html>
+            <html>
+                <head>
+                    <title>Authentication Error</title>
+                    <script>
+                        window.onload = function() {
+                            // Check if this window was opened by another window
+                            if (window.opener && !window.opener.closed) {
+                                // Pass the error to the parent window
+                                window.opener.postMessage({ type: 'GOOGLE_AUTH_ERROR', error: 'no_auth_code' }, '*');
+                                // Close this window
+                                window.close();
+                            } else {
+                                // Fallback to redirect if this is not a popup
+                                window.location.href = '/dashboard?error=no_auth_code';
+                            }
+                        };
+                    </script>
+                </head>
+                <body>
+                    <p>Authentication failed: No authorization code provided. You can close this window and return to the application.</p>
+                </body>
+            </html>
+            """
+            return HTMLResponse(content=html_content)
+
+        print(f"Received authorization code: {code[:10]}...") # Only show first 10 chars for security
+
+        # Store the code in a temporary session or cache
+        # In a real application, you would store this securely and associate it with the user
+        # For now, we'll communicate the code back to the parent window and close this window
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title>Authentication Successful</title>
+                <script>
+                    window.onload = function() {{
+                        // Check if this window was opened by another window
+                        if (window.opener && !window.opener.closed) {{
+                            // Pass the auth code to the parent window
+                            window.opener.postMessage({{ type: 'GOOGLE_AUTH_SUCCESS', authCode: '{code}' }}, '*');
+                            // Close this window
+                            window.close();
+                        }} else {{
+                            // Fallback to redirect if this is not a popup
+                            window.location.href = '/dashboard?auth_code={code}';
+                        }}
+                    }};
+                </script>
+            </head>
+            <body>
+                <p>Authentication successful. You can close this window and return to the application.</p>
+            </body>
+        </html>
+        """
+        return HTMLResponse(content=html_content)
+
+    except Exception as e:
+        print(f"Error handling Google auth callback (GET): {str(e)}")
+        # Communicate error to parent window or redirect
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title>Authentication Error</title>
+                <script>
+                    window.onload = function() {{
+                        // Check if this window was opened by another window
+                        if (window.opener && !window.opener.closed) {{
+                            // Pass the error to the parent window
+                            window.opener.postMessage({{ type: 'GOOGLE_AUTH_ERROR', error: 'server_error' }}, '*');
+                            // Close this window
+                            window.close();
+                        }} else {{
+                            // Fallback to redirect if this is not a popup
+                            window.location.href = '/dashboard?error=server_error';
+                        }}
+                    }};
+                </script>
+            </head>
+            <body>
+                <p>Authentication failed: Server error. You can close this window and return to the application.</p>
+            </body>
+        </html>
+        """
+        return HTMLResponse(content=html_content)
 
 
 @router.post("/callback", response_model=GoogleAuthCallbackResponse, status_code=status.HTTP_200_OK)

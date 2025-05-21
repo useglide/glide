@@ -17,10 +17,18 @@ def initialize_firebase():
             # If service account key is provided, use it
             if settings.FIREBASE_SERVICE_ACCOUNT_KEY:
                 cred = credentials.Certificate(settings.FIREBASE_SERVICE_ACCOUNT_KEY)
-                initialize_app(cred)
+                # Include database URL if available
+                if settings.FIREBASE_DATABASE_URL:
+                    initialize_app(cred, {'databaseURL': settings.FIREBASE_DATABASE_URL})
+                else:
+                    initialize_app(cred)
             # Otherwise use project ID only (for environments with default credentials)
             elif settings.FIREBASE_PROJECT_ID:
-                initialize_app(options={"projectId": settings.FIREBASE_PROJECT_ID})
+                options = {"projectId": settings.FIREBASE_PROJECT_ID}
+                # Include database URL if available
+                if settings.FIREBASE_DATABASE_URL:
+                    options["databaseURL"] = settings.FIREBASE_DATABASE_URL
+                initialize_app(options=options)
             else:
                 print("Warning: No Firebase credentials provided. Authentication will not work.")
         except Exception as e:
