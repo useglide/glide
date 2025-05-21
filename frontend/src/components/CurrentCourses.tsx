@@ -34,6 +34,7 @@ interface CurrentCoursesProps {
   refreshing?: boolean;
   onAddCourse?: (courseId: number) => void;
   onRemoveCourse?: (courseId: number) => void;
+  onUpdateColor?: (courseId: number, color: string) => void;
   onRefreshData?: () => void;
 }
 
@@ -44,6 +45,7 @@ export function CurrentCourses({
   refreshing = false,
   onAddCourse,
   onRemoveCourse,
+  onUpdateColor,
   onRefreshData
 }: CurrentCoursesProps) {
   // Initialize router for navigation
@@ -158,6 +160,11 @@ export function CurrentCourses({
     } else {
       // Add new customized course
       setCustomizedCourses([...customizedCourses, updatedCourse]);
+    }
+
+    // If we have an onUpdateColor callback, call it with the course ID and color
+    if (onUpdateColor) {
+      onUpdateColor(courseId, customColor);
     }
   };
 
@@ -474,7 +481,7 @@ function AddCourseCard({ onClick }: { onClick: () => void }) {
       <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mb-2">
         <PlusIcon className="h-6 w-6 text-gray-500" />
       </div>
-      <span className="text-gray-600 font-medium">Edit Courses</span>
+      <span className="text-gray-600 font-medium">Edit Favorite Courses</span>
     </button>
   );
 }

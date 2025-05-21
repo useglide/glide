@@ -367,4 +367,106 @@ export const getAssignmentDetails = async (courseId, assignmentId, options = {})
   }
 };
 
+/**
+ * Get user's favorite courses
+ * @param {Object} options - Options for the request
+ * @returns {Promise<Array>} List of favorite courses
+ */
+export const getFavoriteCourses = async (options = {}) => {
+  const { cache = 'force-cache', bypassCache = false } = options;
 
+  try {
+    const token = await getIdToken();
+    const user = auth.currentUser;
+
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    // Add user ID and timestamp to URL to ensure unique cache per user
+    const url = joinUrl(API_URL, 'favorite-courses');
+    const urlWithUserAndCache = bypassCache
+      ? `${url}?uid=${user.uid}&_=${Date.now()}`
+      : `${url}?uid=${user.uid}`;
+
+    console.log(`Fetching favorite courses for user: ${user.uid}`);
+
+    // Use the cache option to enable browser caching
+    const response = await fetch(urlWithUserAndCache, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      cache: bypassCache ? 'no-store' : cache,
+      // Add next.js specific cache control
+      next: bypassCache ? { revalidate: 0 } : undefined
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Favorite courses fetch failed:', error);
+    throw error;
+  }
+};
+
+/**
+ * Add a course to favorites
+ * @param {number} courseId - Course ID to add to favorites
+ * @param {string} color - Optional color for the course
+ * @returns {Promise<Object>} Result of operation
+ */
+export const addFavoriteCourse = async (courseId, color = null) => {
+  try {
+    const data = { courseId };
+    if (color) {
+      data.color = color;
+    }
+
+    return fetchWithAuth(joinUrl(API_URL, 'favorite-courses'), {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  } catch (error) {
+    console.error('Failed to add course to favorites:', error);
+    throw error;
+  }
+};
+
+/**
+ * Remove a course from favorites
+ * @param {number} courseId - Course ID to remove from favorites
+ * @returns {Promise<Object>} Result of operation
+ */
+export const removeFavoriteCourse = async (courseId) => {
+  try {
+    return fetchWithAuth(joinUrl(API_URL, `favorite-courses/${courseId}`), {
+      method: 'DELETE'
+    });
+  } catch (error) {
+    console.error('Failed to remove course from favorites:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update a favorite course's color
+ * @param {number} courseId - Course ID to update
+ * @param {string} color - New color for the course
+ * @returns {Promise<Object>} Result of operation
+ */
+export const updateFavoriteCourseColor = async (courseId, color) => {
+  try {
+    return fetchWithAuth(joinUrl(API_URL, `favorite-courses/${courseId}/color`), {
+      method: 'PATCH',
+      body: JSON.stringify({ color })
+    });
+  } catch (error) {
+    console.error('Failed to update favorite course color:', error);
+    throw error;
+  }
+};

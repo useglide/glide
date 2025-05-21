@@ -103,9 +103,9 @@ export function CourseSelectionModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[80vh] flex flex-col bg-white">
         <DialogHeader>
-          <DialogTitle>Add Courses</DialogTitle>
+          <DialogTitle>Manage Favorite Courses</DialogTitle>
           <DialogDescription>
-            Select courses to add to your Current Courses dashboard.
+            Select courses to add to or remove from your favorites. Current courses are automatically added as favorites unless you remove them.
           </DialogDescription>
         </DialogHeader>
 

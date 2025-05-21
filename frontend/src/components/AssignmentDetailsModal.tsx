@@ -9,7 +9,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Calendar, Clock, FileText, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Calendar, FileText, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { getAssignmentDetails } from '@/services/api';
 
 // Define the assignment interface
@@ -61,9 +61,9 @@ export function AssignmentDetailsModal({
 
           const response = await getAssignmentDetails(assignment.course_id!, assignment.id);
           setDetailedAssignment(response.assignment);
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error('Failed to fetch assignment details:', err);
-          setError(err.message || 'Failed to fetch assignment details');
+          setError(err instanceof Error ? err.message : 'Failed to fetch assignment details');
         } finally {
           setLoading(false);
         }
@@ -92,7 +92,7 @@ export function AssignmentDetailsModal({
         day: 'numeric',
         year: 'numeric',
       });
-    } catch (e) {
+    } catch {
       return 'Invalid date';
     }
   };
@@ -107,7 +107,7 @@ export function AssignmentDetailsModal({
         hour: '2-digit',
         minute: '2-digit'
       });
-    } catch (e) {
+    } catch {
       return '';
     }
   };

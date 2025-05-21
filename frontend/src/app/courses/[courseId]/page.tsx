@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { getDetailedCourseData, getAssignmentDetails } from '@/services/api';
 import { Header } from '@/components/Header';
-import { ChevronLeft, Calendar, FileText, MessageSquare, BarChart3, RefreshCw, Loader2 } from 'lucide-react';
+import { ChevronLeft, RefreshCw, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { darkenColor, isLightColor } from '@/lib/utils';
 
@@ -107,7 +107,7 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
         const course = data.courses?.find(c => c.id === courseId) || null;
 
         // Filter assignments for this course
-        let courseAssignments = data.courseAssignments?.[courseId] || [];
+        const courseAssignments = data.courseAssignments?.[courseId] || [];
 
         // Filter announcements for this course (if available)
         const courseAnnouncements = data.announcements?.filter(
@@ -161,12 +161,12 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
             }));
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Failed to fetch course data:', err);
         setCourseData(prev => ({
           ...prev,
           loading: false,
-          error: err.message || 'Failed to fetch course data'
+          error: err instanceof Error ? err.message : 'Failed to fetch course data'
         }));
       }
     };
@@ -186,7 +186,7 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
       const course = data.courses?.find(c => c.id === courseId) || null;
 
       // Filter assignments for this course
-      let courseAssignments = data.courseAssignments?.[courseId] || [];
+      const courseAssignments = data.courseAssignments?.[courseId] || [];
 
       // Filter announcements for this course (if available)
       const courseAnnouncements = data.announcements?.filter(
@@ -248,13 +248,14 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
       setTimeout(() => {
         setError('');
       }, 3000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to refresh course data:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setCourseData(prev => ({
         ...prev,
-        error: err.message || 'Failed to refresh course data'
+        error: errorMessage
       }));
-      setError('Failed to refresh course data: ' + (err.message || 'Unknown error'));
+      setError('Failed to refresh course data: ' + errorMessage);
     } finally {
       setRefreshing(false);
     }

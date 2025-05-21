@@ -1,9 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, ChevronUp, ChevronDown, Settings, ArrowUpRight } from 'lucide-react';
-import { CourseSettingsModal } from './CourseSettingsModal';
-import { darkenColor, isLightColor } from '@/lib/utils';
+import { RefreshCw, ChevronUp, ChevronDown, ArrowUpRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 // Define the teacher interface

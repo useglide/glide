@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { getAssignmentDetails } from '@/services/api';
 import { Header } from '@/components/Header';
-import { Calendar, Clock, FileText, CheckCircle, XCircle, AlertCircle, Loader2, ChevronLeft } from 'lucide-react';
+import { Calendar, FileText, CheckCircle, XCircle, AlertCircle, Loader2, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 
 // Define the assignment interface
@@ -59,9 +59,9 @@ export default function AssignmentDetailsPage({ params }: { params: Promise<{ co
 
         const response = await getAssignmentDetails(courseId, assignmentId);
         setAssignment(response.assignment);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Failed to fetch assignment details:', err);
-        setError(err.message || 'Failed to fetch assignment details');
+        setError(err instanceof Error ? err.message : 'Failed to fetch assignment details');
       } finally {
         setLoading(false);
       }
@@ -82,7 +82,7 @@ export default function AssignmentDetailsPage({ params }: { params: Promise<{ co
         day: 'numeric',
         year: 'numeric',
       });
-    } catch (e) {
+    } catch {
       return 'Invalid date';
     }
   };
@@ -97,7 +97,7 @@ export default function AssignmentDetailsPage({ params }: { params: Promise<{ co
         hour: '2-digit',
         minute: '2-digit'
       });
-    } catch (e) {
+    } catch {
       return '';
     }
   };
