@@ -31,7 +31,7 @@ export const sendChatMessage = async (message, conversationId = null) => {
     let token = null;
     try {
       token = await getIdToken();
-    } catch (error) {
+    } catch {
       console.warn('User not authenticated, proceeding without token');
     }
 
@@ -104,7 +104,7 @@ export const getChatHistory = async (conversationId) => {
     let token = null;
     try {
       token = await getIdToken();
-    } catch (error) {
+    } catch {
       console.warn('User not authenticated, proceeding without token');
     }
 
@@ -157,7 +157,7 @@ export const clearChatHistory = async (conversationId) => {
     let token = null;
     try {
       token = await getIdToken();
-    } catch (error) {
+    } catch {
       console.warn('User not authenticated, proceeding without token');
     }
 

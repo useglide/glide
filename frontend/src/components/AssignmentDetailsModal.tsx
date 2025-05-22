@@ -36,6 +36,11 @@ interface Assignment {
   };
 }
 
+// Define API response interface
+interface AssignmentResponse {
+  assignment: Assignment;
+}
+
 interface AssignmentDetailsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -59,7 +64,7 @@ export function AssignmentDetailsModal({
           setLoading(true);
           setError(null);
 
-          const response = await getAssignmentDetails(assignment.course_id!, assignment.id);
+          const response = await getAssignmentDetails(assignment.course_id!, assignment.id) as AssignmentResponse;
           setDetailedAssignment(response.assignment);
         } catch (err: unknown) {
           console.error('Failed to fetch assignment details:', err);
@@ -81,7 +86,7 @@ export function AssignmentDetailsModal({
   }
 
   // Format due date
-  const formatDate = (dateString: string | null) => {
+  const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'No due date';
 
     try {
@@ -98,7 +103,7 @@ export function AssignmentDetailsModal({
   };
 
   // Format due time
-  const formatTime = (dateString: string | null) => {
+  const formatTime = (dateString: string | null | undefined) => {
     if (!dateString) return '';
 
     try {
@@ -114,7 +119,7 @@ export function AssignmentDetailsModal({
 
   // Determine status and get appropriate icon
   const getStatusInfo = () => {
-    if (!displayAssignment.grade_info) {
+    if (!displayAssignment || !displayAssignment.grade_info) {
       return {
         label: 'Not submitted',
         icon: <AlertCircle className="h-5 w-5 text-[var(--glide-blue-50)]" />,
@@ -168,10 +173,10 @@ export function AssignmentDetailsModal({
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-[var(--primary-color)]">
-            {displayAssignment.name}
+            {displayAssignment?.name || 'Assignment Details'}
           </DialogTitle>
           <DialogDescription className="text-[var(--secondary-color)]">
-            {displayAssignment.course_name || displayAssignment.course_code}
+            {displayAssignment?.course_name || displayAssignment?.course_code || 'Course'}
           </DialogDescription>
         </DialogHeader>
 
@@ -206,8 +211,8 @@ export function AssignmentDetailsModal({
                 <Calendar className="h-5 w-5 text-[var(--secondary-color)] mr-2 mt-0.5" />
                 <div>
                   <h4 className="text-sm font-medium text-[var(--primary-color)]">Due Date</h4>
-                  <p className="text-[var(--secondary-color)]">{formatDate(displayAssignment.due_at)}</p>
-                  {displayAssignment.due_at && (
+                  <p className="text-[var(--secondary-color)]">{formatDate(displayAssignment?.due_at)}</p>
+                  {displayAssignment?.due_at && (
                     <p className="text-[var(--secondary-color)] text-sm">{formatTime(displayAssignment.due_at)}</p>
                   )}
                 </div>
@@ -217,11 +222,11 @@ export function AssignmentDetailsModal({
                 <div>
                   <h4 className="text-sm font-medium text-[var(--primary-color)]">Points</h4>
                   <p className="text-[var(--secondary-color)]">
-                    {displayAssignment.points_possible !== null && displayAssignment.points_possible !== undefined
+                    {displayAssignment?.points_possible !== null && displayAssignment?.points_possible !== undefined
                       ? `${displayAssignment.points_possible} points possible`
                       : 'No points assigned'}
                   </p>
-                  {displayAssignment.grade_info?.score !== null && displayAssignment.grade_info?.score !== undefined && (
+                  {displayAssignment?.grade_info?.score !== null && displayAssignment?.grade_info?.score !== undefined && (
                     <p className="text-[var(--primary-color)] font-medium">
                       Your score: {displayAssignment.grade_info.score}
                       {displayAssignment.grade_info.percentage && ` (${displayAssignment.grade_info.percentage}%)`}
@@ -234,7 +239,7 @@ export function AssignmentDetailsModal({
             {/* Assignment description */}
             <div className="mb-6">
               <h3 className="text-lg font-medium text-[var(--primary-color)] mb-2">Description</h3>
-              {displayAssignment.description ? (
+              {displayAssignment?.description ? (
                 <div
                   className="prose max-w-none text-[var(--secondary-color)]"
                   dangerouslySetInnerHTML={{ __html: displayAssignment.description }}
@@ -245,7 +250,7 @@ export function AssignmentDetailsModal({
             </div>
 
             {/* Submission types */}
-            {displayAssignment.submission_types && displayAssignment.submission_types.length > 0 && (
+            {displayAssignment?.submission_types && displayAssignment.submission_types.length > 0 && (
               <div className="mb-6">
                 <h3 className="text-lg font-medium text-[var(--primary-color)] mb-2">Submission Type</h3>
                 <ul className="list-disc pl-5 text-[var(--secondary-color)]">
@@ -260,21 +265,23 @@ export function AssignmentDetailsModal({
 
         <DialogFooter className="flex justify-between items-center">
           <div>
-            {displayAssignment.grade_info?.submitted_at && (
+            {displayAssignment?.grade_info?.submitted_at && (
               <p className="text-sm text-[var(--secondary-color)]">
                 Submitted: {new Date(displayAssignment.grade_info.submitted_at).toLocaleString()}
               </p>
             )}
           </div>
           <div className="flex gap-2">
-            <a
-              href={displayAssignment.html_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 bg-[var(--glide-blue)] text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
-            >
-              View in Canvas
-            </a>
+            {displayAssignment?.html_url && (
+              <a
+                href={displayAssignment.html_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-[var(--glide-blue)] text-white rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                View in Canvas
+              </a>
+            )}
           </div>
         </DialogFooter>
       </DialogContent>

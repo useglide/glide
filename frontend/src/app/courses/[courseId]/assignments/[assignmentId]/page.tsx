@@ -8,6 +8,21 @@ import { Header } from '@/components/Header';
 import { Calendar, FileText, CheckCircle, XCircle, AlertCircle, Loader2, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 
+// Define Auth context interface
+interface AuthContextType {
+  user: {
+    uid: string;
+    email: string;
+    displayName?: string;
+  } | null;
+  logout: () => Promise<void>;
+}
+
+// Define API response interface
+interface AssignmentResponse {
+  assignment: Assignment;
+}
+
 // Define the assignment interface
 interface Assignment {
   id: number;
@@ -42,7 +57,7 @@ export default function AssignmentDetailsPage({ params }: { params: Promise<{ co
   const [error, setError] = useState<string | null>(null);
   const [assignment, setAssignment] = useState<Assignment | null>(null);
 
-  const { user, logout } = useAuth();
+  const { user, logout } = useAuth() as AuthContextType;
   const router = useRouter();
 
   // Fetch assignment details when the component mounts
@@ -57,7 +72,7 @@ export default function AssignmentDetailsPage({ params }: { params: Promise<{ co
         setLoading(true);
         setError(null);
 
-        const response = await getAssignmentDetails(courseId, assignmentId);
+        const response = await getAssignmentDetails(courseId, assignmentId) as AssignmentResponse;
         setAssignment(response.assignment);
       } catch (err: unknown) {
         console.error('Failed to fetch assignment details:', err);

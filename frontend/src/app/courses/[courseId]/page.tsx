@@ -9,6 +9,16 @@ import { ChevronLeft, RefreshCw, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { darkenColor, isLightColor } from '@/lib/utils';
 
+// Define Auth context interface
+interface AuthContextType {
+  user: {
+    uid: string;
+    email: string;
+    displayName?: string;
+  } | null;
+  logout: () => Promise<void>;
+}
+
 // Define interfaces
 interface Teacher {
   id: number;
@@ -63,6 +73,17 @@ interface Course {
   customColor?: string;
 }
 
+// Define API response interfaces
+interface CourseDataResponse {
+  courses: Course[];
+  courseAssignments: Record<number, Assignment[]>;
+  announcements: Announcement[];
+}
+
+interface AssignmentResponse {
+  assignment: Assignment;
+}
+
 export default function CourseDetailsPage({ params }: { params: Promise<{ courseId: string }> }) {
   // Use the 'use' hook to unwrap the params Promise
   const resolvedParams = use(params);
@@ -86,7 +107,7 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
     announcements: []
   });
 
-  const { user, logout } = useAuth();
+  const { user, logout } = useAuth() as AuthContextType;
   const router = useRouter();
 
   // Fetch course data
@@ -101,7 +122,7 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
         setCourseData(prev => ({ ...prev, loading: true, error: null }));
 
         // Fetch all course data and filter for this specific course
-        const data = await getDetailedCourseData({ cache: 'force-cache' });
+        const data = await getDetailedCourseData({ cache: 'force-cache' }) as CourseDataResponse;
 
         // Find the specific course
         const course = data.courses?.find(c => c.id === courseId) || null;
@@ -117,6 +138,7 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
         // Set initial data
         setCourseData({
           loading: false,
+          gradesLoading: false,
           error: null,
           course,
           assignments: courseAssignments,
@@ -135,7 +157,7 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
             // Create an array of promises for fetching assignment details
             const assignmentPromises = courseAssignments.map(async (assignment) => {
               try {
-                const detailedData = await getAssignmentDetails(courseId, assignment.id);
+                const detailedData = await getAssignmentDetails(courseId, assignment.id) as AssignmentResponse;
                 return detailedData.assignment;
               } catch (error) {
                 console.error(`Error fetching details for assignment ${assignment.id}:`, error);
@@ -180,7 +202,7 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
       setError('');
 
       // Fetch fresh data
-      const data = await getDetailedCourseData({ bypassCache: true });
+      const data = await getDetailedCourseData({ bypassCache: true }) as CourseDataResponse;
 
       // Find the specific course
       const course = data.courses?.find(c => c.id === courseId) || null;
@@ -196,6 +218,7 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
       // Set initial data
       setCourseData({
         loading: false,
+        gradesLoading: false,
         error: null,
         course,
         assignments: courseAssignments,
@@ -214,7 +237,7 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
           // Create an array of promises for fetching assignment details
           const assignmentPromises = courseAssignments.map(async (assignment) => {
             try {
-              const detailedData = await getAssignmentDetails(courseId, assignment.id, { bypassCache: true });
+              const detailedData = await getAssignmentDetails(courseId, assignment.id, { bypassCache: true }) as AssignmentResponse;
               return detailedData.assignment;
             } catch (error) {
               console.error(`Error fetching details for assignment ${assignment.id}:`, error);

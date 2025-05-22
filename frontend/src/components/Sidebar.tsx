@@ -38,7 +38,6 @@ const SidebarItem = ({ href, icon, label, isActive }: SidebarItemProps) => {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
   // Define sidebar items
   const sidebarItems = [
@@ -71,10 +70,7 @@ export function Sidebar() {
     label: 'Settings',
   };
 
-  // Close mobile menu when route changes
-  React.useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [pathname]);
+
 
   return (
     <aside className="bg-[var(--white-grey)] h-screen fixed left-0 top-0 flex flex-col w-60 z-40 shadow-sm">

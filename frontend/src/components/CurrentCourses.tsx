@@ -5,8 +5,6 @@ import { PlusIcon, ChevronDownIcon, ChevronUpIcon, Settings, RefreshCw, ArrowUpR
 import { CourseSelectionModal } from './CourseSelectionModal';
 import { CourseSettingsModal } from './CourseSettingsModal';
 import { darkenColor, isLightColor } from '@/lib/utils';
-import { getTwoStageData, getDetailedCourseData } from '@/services/api';
-import { useRouter } from 'next/navigation';
 
 
 // Define the teacher interface
@@ -48,8 +46,7 @@ export function CurrentCourses({
   onUpdateColor,
   onRefreshData
 }: CurrentCoursesProps) {
-  // Initialize router for navigation
-  const router = useRouter();
+
 
   // State to track whether to show all courses or just the first 5
   const [showAllCourses, setShowAllCourses] = useState(false);
@@ -308,8 +305,7 @@ function CourseCard({
   onOpenSettings: (course: Course) => void,
   customizedCourse?: Course | null
 }) {
-  // Initialize router for navigation
-  const router = useRouter();
+
   // Format the grade to show as a percentage
   const gradePercentage = course.grade !== null && course.grade !== undefined
     ? `${Math.round(course.grade)}%`
@@ -398,7 +394,7 @@ function CourseCard({
     <div
       className={`${cardClassName} cursor-pointer`}
       style={cardColor.startsWith('bg-') ? {} : { backgroundColor: cardColor }}
-      onClick={() => router.push(`/courses/${course.id}`)}
+      onClick={() => window.location.href = `/courses/${course.id}`}
     >
       {/* Course code and settings icon */}
       <div className="flex justify-between items-start">

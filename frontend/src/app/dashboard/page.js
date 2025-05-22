@@ -275,7 +275,6 @@ export default function Dashboard() {
           // If we have current courses, add them to favorites if they're not already there
           // Note: The backend will handle checking if a course was explicitly removed by the user
           if (currentCourses.length > 0) {
-            const newFavorites = [...favoriteIds];
             let favoritesChanged = false;
 
             for (const course of currentCourses) {

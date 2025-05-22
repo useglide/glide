@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
-import { getTwoStageData, getDetailedCourseData } from '../../services/api';
+import { getDetailedCourseData } from '../../services/api';
 import { Header } from '../../components/Header';
 import { CoursesList } from '../../components/CoursesList';
 

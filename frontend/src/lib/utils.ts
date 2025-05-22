@@ -228,7 +228,7 @@ export function getTextColorForBackground(
           return darkColorFallback;
         }
       }
-    } catch (e) {
+    } catch {
       // If parsing fails, use default
       return '#1E293B';
     }
