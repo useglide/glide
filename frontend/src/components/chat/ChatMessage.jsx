@@ -11,6 +11,9 @@ import { BotIcon, UserIcon } from 'lucide-react';
  * @param {string} props.className - Additional CSS classes
  */
 export function ChatMessage({ content, isUser, className }) {
+  // Log the content for debugging
+  console.log('Rendering ChatMessage with content:', content && content.length > 100 ? content.substring(0, 100) + '...' : content);
+  console.log('Full message length:', content ? content.length : 0);
   return (
     <div
       className={cn(

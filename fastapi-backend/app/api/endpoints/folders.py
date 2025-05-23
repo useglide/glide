@@ -39,24 +39,73 @@ async def create_class_folders(
 
         # Check if user has valid Google credentials
         if not google_service.has_valid_credentials():
-            # Get authorization URL for Google OAuth
-            auth_service = google_service.auth_service
-            auth_result = auth_service.initialize_auth_for_registration(request.user_id)
+            # If user is authenticated with Google through Firebase
+            if request.is_google_user and request.google_token:
+                print(f"User {request.user_id} is authenticated with Google through Firebase")
 
-            if auth_result.get("status") == "url_generated" and auth_result.get("auth_url"):
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail={
-                        "message": "Google authentication required",
-                        "auth_url": auth_result["auth_url"],
-                        "error_type": "google_auth_required"
-                    }
-                )
+                try:
+                    # Try to use the Firebase token for Google authentication
+                    auth_service = google_service.auth_service
+                    auth_result = auth_service.initialize_auth_for_registration(
+                        request.user_id,
+                        google_token=request.google_token
+                    )
+
+                    # If successful, continue with folder creation
+                    if auth_result.get("status") == "authenticated" and auth_result.get("success", False):
+                        print("Successfully authenticated with Firebase Google token")
+                    else:
+                        # If not successful, we'll fall through to the standard OAuth flow
+                        print("Failed to authenticate with Firebase Google token")
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail={
+                                "message": "Google authentication required",
+                                "error_type": "google_auth_required"
+                            }
+                        )
+                except HTTPException as http_error:
+                    # If the auth service raised an HTTPException, pass it through
+                    raise http_error
+                except Exception as e:
+                    print(f"Error authenticating with Firebase Google token: {str(e)}")
+                    # Fall through to standard OAuth flow
+                    auth_service = google_service.auth_service
+                    auth_result = auth_service.initialize_auth_for_registration(request.user_id)
+
+                    if auth_result.get("status") == "url_generated" and auth_result.get("auth_url"):
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail={
+                                "message": "Google authentication required",
+                                "auth_url": auth_result["auth_url"],
+                                "error_type": "google_auth_required"
+                            }
+                        )
+                    else:
+                        raise HTTPException(
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="Failed to generate Google authentication URL"
+                        )
             else:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to generate Google authentication URL"
-                )
+                # Standard OAuth flow for users not authenticated with Google
+                auth_service = google_service.auth_service
+                auth_result = auth_service.initialize_auth_for_registration(request.user_id)
+
+                if auth_result.get("status") == "url_generated" and auth_result.get("auth_url"):
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail={
+                            "message": "Google authentication required",
+                            "auth_url": auth_result["auth_url"],
+                            "error_type": "google_auth_required"
+                        }
+                    )
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Failed to generate Google authentication URL"
+                    )
 
         # Create semester folders for the classes
         result = google_service.create_semester_folders(

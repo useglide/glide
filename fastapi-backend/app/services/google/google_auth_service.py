@@ -5,6 +5,7 @@ from typing import Dict, Optional
 
 # Google API imports
 from google_auth_oauthlib.flow import Flow
+from google.oauth2.credentials import Credentials
 
 # Local imports
 from app.services.google.base_google_service import BaseGoogleService
@@ -15,7 +16,7 @@ class GoogleAuthService(BaseGoogleService):
     Extends BaseGoogleService with authentication-specific methods.
     """
 
-    def initialize_auth_for_registration(self, user_id, auth_code=None):
+    def initialize_auth_for_registration(self, user_id, auth_code=None, google_token=None):
         """
         Initialize Google authentication during user registration
 
@@ -23,15 +24,26 @@ class GoogleAuthService(BaseGoogleService):
             user_id (str): Firebase user ID
             auth_code (str, optional): Authorization code from Google OAuth. If not provided,
                                       will return an authorization URL for the user to visit.
+            google_token (str, optional): Google OAuth token from Firebase Authentication.
+                                         If provided, will use this token instead of auth_code.
 
         Returns:
             dict: Result containing either:
-                - {'status': 'url_generated', 'auth_url': url} if auth_code is None
-                - {'status': 'authenticated', 'success': True/False} if auth_code is provided
+                - {'status': 'url_generated', 'auth_url': url} if auth_code is None and google_token is None
+                - {'status': 'authenticated', 'success': True/False} if auth_code or google_token is provided
         """
         self.user_id = user_id
 
-        if not auth_code:
+        # If Firebase Google token is provided, use it
+        if google_token:
+            print(f"Using Firebase Google token for user {user_id}")
+            success = self.handle_firebase_google_token(google_token)
+            return {
+                'status': 'authenticated',
+                'success': success
+            }
+        # If auth_code is not provided, generate authorization URL
+        elif not auth_code:
             # Generate authorization URL for the user to visit
             auth_url = self.get_authorization_url()
             if auth_url:
@@ -44,6 +56,7 @@ class GoogleAuthService(BaseGoogleService):
                     'status': 'error',
                     'message': 'Failed to generate authorization URL'
                 }
+        # Otherwise, process the authorization code
         else:
             # Process the authorization code
             success = self.handle_auth_callback(auth_code)
@@ -139,6 +152,60 @@ class GoogleAuthService(BaseGoogleService):
             return True
         except Exception as e:
             print(f"Error handling auth callback: {str(e)}")
+            return False
+
+    def handle_firebase_google_token(self, token):
+        """
+        Handle Firebase Google OAuth token and save credentials
+
+        Args:
+            token (str): Firebase ID token for a user authenticated with Google
+
+        Returns:
+            bool: True if authentication was successful, False otherwise
+        """
+        try:
+            if not token:
+                print("Error: No Firebase token provided")
+                return False
+
+            print("Processing Firebase token for Google-authenticated user")
+
+            # For Firebase-authenticated users, we need to use the standard OAuth flow
+            # because Firebase doesn't directly expose Google OAuth tokens
+
+            # First, check if we already have valid credentials for this user
+            existing_creds = self._get_credentials_from_firebase()
+            if existing_creds and hasattr(existing_creds, 'valid') and existing_creds.valid:
+                print(f"User {self.user_id} already has valid Google credentials")
+                self.credentials = existing_creds
+                self._initialize_services()
+                return True
+
+            # If we don't have valid credentials, we need to start the OAuth flow
+            # Generate an authorization URL for the user
+            auth_url = self.get_authorization_url()
+            if not auth_url:
+                print("Failed to generate authorization URL")
+                return False
+
+            # Since we can't automatically complete the OAuth flow with just the Firebase token,
+            # we need to inform the caller that the user needs to go through the OAuth flow
+            print(f"User {self.user_id} needs to complete Google OAuth flow")
+
+            # This will be caught by the caller and returned as an error
+            from fastapi import HTTPException, status
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={
+                    "message": "Google authentication required",
+                    "auth_url": auth_url,
+                    "error_type": "google_auth_required"
+                }
+            )
+
+        except Exception as e:
+            print(f"Error handling Firebase token for Google authentication: {str(e)}")
             return False
 
     def _create_auth_flow(self):

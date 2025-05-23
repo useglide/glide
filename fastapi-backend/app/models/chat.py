@@ -21,6 +21,11 @@ class ChatResponse(BaseModel):
     conversation_id: str = Field(..., description="The conversation ID for future reference")
 
 
+class WelcomeResponse(BaseModel):
+    """Response model for welcome message endpoint."""
+    message: str = Field(..., description="The welcome message for the user")
+
+
 class MemoryRequest(BaseModel):
     """Request model for memory operations."""
     conversation_id: str = Field(..., description="The conversation ID to retrieve or clear memory for")

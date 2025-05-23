@@ -4,24 +4,27 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../../context/AuthContext';
+import { FcGoogle } from 'react-icons/fc';
+import { Divider } from '../../components/ui/divider';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
-  const { login } = useAuth();
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const { login, loginWithGoogle } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       setError('Please enter both email and password');
       return;
     }
-    
+
     try {
       setError('');
       setLoading(true);
@@ -34,6 +37,19 @@ export default function Login() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    try {
+      setError('');
+      setGoogleLoading(true);
+      await loginWithGoogle();
+      router.push('/dashboard');
+    } catch (err) {
+      setError('Failed to log in with Google: ' + (err.message || 'Unknown error'));
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8 rounded-lg bg-white p-6 shadow-md">
@@ -41,13 +57,13 @@ export default function Login() {
           <h1 className="text-3xl font-bold">Canvas Dashboard</h1>
           <h2 className="mt-2 text-xl">Log in to your account</h2>
         </div>
-        
+
         {error && (
           <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
             {error}
           </div>
         )}
-        
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4 rounded-md shadow-sm">
             <div>
@@ -66,7 +82,7 @@ export default function Login() {
                 placeholder="Email address"
               />
             </div>
-            
+
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password
@@ -95,7 +111,19 @@ export default function Login() {
             </button>
           </div>
         </form>
-        
+
+        <Divider>or</Divider>
+
+        <button
+          type="button"
+          onClick={handleGoogleSignIn}
+          disabled={googleLoading}
+          className="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+        >
+          <FcGoogle className="h-5 w-5" />
+          {googleLoading ? 'Signing in...' : 'Sign in with Google'}
+        </button>
+
         <div className="mt-4 text-center text-sm">
           <p>
             Don&apos;t have an account?{' '}

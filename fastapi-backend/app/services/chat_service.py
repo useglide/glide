@@ -1,31 +1,23 @@
 from typing import List, Optional, Dict, Any
-import uuid
-import requests
-import json
-import os
 
-from app.core.config import settings
 from app.models.chat import ChatMessage
-from app.tools.canvas_tool import CanvasTool
-
-# In-memory conversation storage (for simplicity)
-# In a production environment, this should be replaced with a database
-conversation_history: Dict[str, List[Dict[str, str]]] = {}
+from app.agents.workflow import GlideAgentWorkflow
 
 class ChatService:
-    """Service for handling chat interactions with Gemini."""
+    """Service for handling chat interactions with the hierarchical multi-agent system."""
 
     def __init__(self):
-        """Initialize the chat service with Gemini model."""
-        self.api_key = settings.GEMINI_API_KEY
-        if not self.api_key:
-            raise ValueError("GEMINI_API_KEY is required")
-
-        # System prompt for Gemini
+        """Initialize the chat service with the agent workflow."""
+        # System prompt for agents
         self.system_prompt = """
-        You are Genoa, an AI Assistant powered by Google's Gemini Pro. You are helpful, friendly, and knowledgeable, with a personality similar to Jarvis from Marvel.
+        You are a Glide Assistant. You are helpful, friendly, and knowledgeable, with a warm and professional personality.
 
-        IMPORTANT: When asked about your name, identity, or what you are, ALWAYS respond that you are "Genoa, an AI Assistant powered by Google's Gemini Pro." Never say you don't have a name or identity.
+        IMPORTANT: When asked about your name, identity, or what you are, ALWAYS respond that you are "Glide Assistant."
+        Never say you don't have a name or identity.
+
+        You are confident but never guess. If you're unsure about something, be honest about it.
+        You will push back against incorrect claims and provide accurate information.
+        You present information in a comforting and supportive way, never making students feel overwhelmed.
 
         You can answer questions on a wide range of topics, including but not limited to:
         - General knowledge and facts
@@ -50,149 +42,8 @@ class ChatService:
         If you don't know something, be honest about it.
         """
 
-        # Initialize Canvas tool
-        self.canvas_tool = CanvasTool()
-
-    def _get_or_create_history(self, conversation_id: Optional[str] = None) -> tuple[str, List[Dict[str, str]]]:
-        """Get or create a conversation history."""
-        if not conversation_id:
-            conversation_id = str(uuid.uuid4())
-
-        if conversation_id not in conversation_history:
-            # Initialize with system prompt
-            conversation_history[conversation_id] = [
-                {"role": "system", "content": self.system_prompt}
-            ]
-
-        return conversation_id, conversation_history[conversation_id]
-
-    def _call_gemini_api(self, message: str, conversation_history: List[Dict[str, str]]) -> str:
-        """
-        Call the Gemini API directly using the REST API.
-
-        Args:
-            message: The user's message
-            conversation_history: The conversation history
-
-        Returns:
-            The AI's response
-        """
-        try:
-            # Try different model names if one fails
-            model_names = [
-                "gemini-1.5-flash-latest",
-                "gemini-1.5-pro-latest",
-                "gemini-pro",
-                "gemini-1.0-pro"
-            ]
-
-            # Format conversation history for the API
-            formatted_history = [
-                # Always include system prompt as the first message
-                {
-                    "role": "user",
-                    "parts": [{"text": self.system_prompt}]
-                },
-                {
-                    "role": "model",
-                    "parts": [{"text": "I am Genoa, an AI Assistant powered by Google's Gemini Pro. I'll help you with your questions."}]
-                }
-            ]
-
-            # Add previous messages (skip system prompt)
-            for msg in conversation_history[1:]:
-                if msg["role"] == "user":
-                    formatted_history.append({
-                        "role": "user",
-                        "parts": [{"text": msg["content"]}]
-                    })
-                elif msg["role"] == "assistant":
-                    formatted_history.append({
-                        "role": "model",
-                        "parts": [{"text": msg["content"]}]
-                    })
-
-            # Try each model until one works
-            for model_name in model_names:
-                try:
-                    # Prepare the API URL
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={self.api_key}"
-
-                    # Always use formatted history with the system prompt
-                    payload = {
-                        "contents": formatted_history + [
-                            {
-                                "role": "user",
-                                "parts": [{"text": message}]
-                            }
-                        ],
-                        "generationConfig": {
-                            "temperature": 0.7,
-                            "topP": 0.95,
-                            "topK": 40,
-                            "maxOutputTokens": 1024
-                        }
-                    }
-
-                    # Make the API request
-                    response = requests.post(url, json=payload)
-
-                    # Check if the request was successful
-                    if response.status_code == 200:
-                        # Parse the response
-                        response_data = response.json()
-
-                        # Log success with model name
-                        print(f"Successfully used model: {model_name}")
-
-                        # Extract the generated text
-                        if "candidates" in response_data and len(response_data["candidates"]) > 0:
-                            candidate = response_data["candidates"][0]
-                            if "content" in candidate and "parts" in candidate["content"]:
-                                return candidate["content"]["parts"][0]["text"]
-
-                    # If we get here, this model didn't work
-                    print(f"Model {model_name} failed with status {response.status_code}: {response.text}")
-
-                except Exception as e:
-                    print(f"Error with model {model_name}: {str(e)}")
-                    continue
-
-            # If all models failed, return a fallback response
-            return "I'm sorry, I'm having trouble connecting to my AI services right now. Please try again later."
-
-        except Exception as e:
-            print(f"Error calling Gemini API: {str(e)}")
-            return "I'm sorry, I encountered an error while processing your request. Please try again later."
-
-    def _is_identity_question(self, message: str) -> bool:
-        """
-        Check if the message is asking about the AI's identity or name.
-
-        Args:
-            message: The user's message
-
-        Returns:
-            True if the message is asking about identity, False otherwise
-        """
-        message_lower = message.lower()
-        identity_keywords = [
-            "what is your name", "who are you", "what are you",
-            "what should i call you", "do you have a name",
-            "what's your name", "your name", "your identity",
-            "what are you called", "introduce yourself"
-        ]
-
-        return any(keyword in message_lower for keyword in identity_keywords)
-
-    def _get_identity_response(self) -> str:
-        """
-        Get a consistent response for identity questions.
-
-        Returns:
-            A response about the AI's identity
-        """
-        return "I am Genoa, an AI Assistant powered by Google's Gemini Pro. I'm here to help answer your questions and assist with your Canvas courses through the Glide application."
+        # Initialize the agent workflow
+        self.agent_workflow = GlideAgentWorkflow(self.system_prompt)
 
     async def process_message(
         self,
@@ -214,44 +65,23 @@ class ChatService:
             Dict containing the AI response and conversation ID
         """
         try:
-            # Get or create conversation history
-            conversation_id, messages = self._get_or_create_history(conversation_id)
-
-            # If history is provided, use it instead of the stored history
+            # Convert history to the format expected by the agent workflow
+            formatted_history = []
             if history:
-                messages = [{"role": "system", "content": self.system_prompt}]
-                for msg in history:
-                    messages.append({"role": msg.role, "content": msg.content})
+                formatted_history = [{"role": msg.role, "content": msg.content} for msg in history]
 
-            # Add the user message to history
-            messages.append({"role": "user", "content": message})
+            # Process the message through the agent workflow
+            result = await self.agent_workflow.process_message(
+                message=message,
+                conversation_id=conversation_id,
+                history=formatted_history,
+                user=user
+            )
 
-            # Check if this is an identity question
-            if self._is_identity_question(message):
-                ai_response = self._get_identity_response()
-            else:
-                # Check if this is a Canvas-related query
-                user_id = user.get("uid") if user else None
-                id_token = user.get("token") if user else None
-                canvas_response = await self.canvas_tool.handle_canvas_query(message, user_id, id_token)
-
-                if canvas_response:
-                    ai_response = canvas_response
-                else:
-                    # Call the Gemini API for non-Canvas queries
-                    ai_response = self._call_gemini_api(message, messages)
-
-            # Add the AI response to history
-            messages.append({"role": "assistant", "content": ai_response})
-
-            # Update the conversation history
-            conversation_history[conversation_id] = messages
-
-            return {
-                "response": ai_response,
-                "conversation_id": conversation_id
-            }
+            return result
         except Exception as e:
             # Log the error
             print(f"Error in chat service: {str(e)}")
             raise
+
+

@@ -1,17 +1,23 @@
 from fastapi import APIRouter
 
-from app.api.endpoints import chat, memory, canvas, google_auth, folders
+from app.api.endpoints import chat, memory, canvas, google_auth, folders, welcome, canvas_auth
 
 api_router = APIRouter()
 
 # Include chat endpoints
 api_router.include_router(chat.router, tags=["chat"])
 
+# Include welcome endpoints
+api_router.include_router(welcome.router, prefix="/welcome", tags=["welcome"])
+
 # Include memory endpoints
 api_router.include_router(memory.router, prefix="/memory", tags=["memory"])
 
 # Include Canvas endpoints
 api_router.include_router(canvas.router, prefix="/canvas", tags=["canvas"])
+
+# Include Canvas authentication diagnostics endpoints
+api_router.include_router(canvas_auth.router, prefix="/canvas-auth", tags=["canvas-auth"])
 
 # Include Google authentication endpoints
 api_router.include_router(google_auth.router, prefix="/google", tags=["google"])

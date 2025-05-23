@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { sendChatMessage, clearChatHistory, getChatHistory } from '@/services/chatService';
+import { getWelcomeMessage } from '@/services/welcomeService';
 
 /**
  * A panel that displays a chat interface
@@ -16,11 +17,38 @@ import { sendChatMessage, clearChatHistory, getChatHistory } from '@/services/ch
  */
 export function ChatPanel({ isOpen, onClose, className }) {
   const [messages, setMessages] = useState([
-    { content: 'Hi there! I\'m Genoa, your AI Assistant powered by Google\'s Gemini Pro. How can I help you today?', isUser: false }
+    { content: 'Loading...', isUser: false }
   ]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [conversationId, setConversationId] = useState(null);
+  const [welcomeMessage, setWelcomeMessage] = useState('');
   const messagesEndRef = useRef(null);
+
+  // Fetch welcome message on initial load and when panel is opened
+  useEffect(() => {
+    const fetchWelcomeMessage = async () => {
+      try {
+        // Add a cache-busting parameter to avoid getting cached responses
+        const message = await getWelcomeMessage(`nocache=${Date.now()}`);
+        console.log('Welcome message received in ChatPanel:', message);
+        setWelcomeMessage(message);
+
+        // Force update the messages state with the new welcome message
+        setMessages([{ content: message, isUser: false }]);
+        console.log('Messages state updated with welcome message');
+      } catch (error) {
+        console.error('Failed to fetch welcome message:', error);
+        setMessages([{ content: "Hi there! I'm your Glide Assistant. How can I help you today?", isUser: false }]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Fetch welcome message when component mounts or when isOpen changes to true
+    if (isOpen) {
+      fetchWelcomeMessage();
+    }
+  }, [isOpen]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -43,7 +71,7 @@ export function ChatPanel({ isOpen, onClose, className }) {
             // Convert the messages to the format expected by the component
             const formattedMessages = [
               // Keep the welcome message
-              { content: 'Hi there! I\'m Genoa, your AI Assistant powered by Google\'s Gemini Pro. How can I help you today?', isUser: false },
+              { content: welcomeMessage || "Hi there! I'm your Glide Assistant. How can I help you today?", isUser: false },
               // Add the history messages
               ...history.messages.map(msg => ({
                 content: msg.content,
@@ -108,10 +136,19 @@ export function ChatPanel({ isOpen, onClose, className }) {
     } catch (error) {
       console.error('Failed to clear chat history:', error);
     } finally {
-      // Reset messages and keep the welcome message regardless of API success/failure
-      setMessages([
-        { content: 'Hi there! I\'m Genoa, your AI Assistant powered by Google\'s Gemini Pro. How can I help you today?', isUser: false }
-      ]);
+      // Fetch a fresh welcome message to ensure we're not using a cached version
+      try {
+        const freshMessage = await getWelcomeMessage(`refresh=${Date.now()}`);
+        console.log('Fresh welcome message after clearing chat:', freshMessage);
+        setWelcomeMessage(freshMessage);
+        setMessages([{ content: freshMessage, isUser: false }]);
+      } catch (error) {
+        console.error('Failed to fetch fresh welcome message:', error);
+        // Fallback to existing welcome message or default
+        setMessages([
+          { content: welcomeMessage || "Hi there! I'm your Glide Assistant. How can I help you today?", isUser: false }
+        ]);
+      }
       setIsLoading(false);
     }
   };
@@ -128,8 +165,8 @@ export function ChatPanel({ isOpen, onClose, className }) {
       {/* Header */}
       <div className="flex items-center justify-between border-b px-4 py-3">
         <div>
-          <h2 className="text-lg font-semibold">Genoa AI Assistant</h2>
-          <p className="text-xs text-muted-foreground">Powered by Gemini Pro</p>
+          <h2 className="text-lg font-semibold">Glide Assistant</h2>
+          <p className="text-xs text-muted-foreground">Your academic support AI</p>
         </div>
         <div className="flex items-center gap-2">
           <button

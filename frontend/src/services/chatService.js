@@ -62,9 +62,20 @@ export const sendChatMessage = async (message, conversationId = null) => {
     if (!response.ok) {
       console.error('Chat endpoint failed:', response.status);
 
-      // Return a friendly error message
+      // Return a varied friendly error message
+      const errorMessages = [
+        "I'm sorry, I'm having trouble connecting to my backend services right now. Please try again in a moment.",
+        "It seems I can't reach the server at the moment. Could you try again shortly?",
+        "I'm experiencing connection issues with the backend. Please try again soon.",
+        "The server connection is temporarily unavailable. Please try again in a moment.",
+        "I apologize, but I'm having difficulty connecting to the server. Could we try again?"
+      ];
+
+      // Get a random error message
+      const randomIndex = Math.floor(Math.random() * errorMessages.length);
+
       return {
-        response: "I'm sorry, I'm having trouble connecting to my backend services right now. Please try again in a moment.",
+        response: errorMessages[randomIndex],
         conversation_id: conversationId || "error"
       };
     }

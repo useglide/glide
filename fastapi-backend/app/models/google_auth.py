@@ -35,3 +35,16 @@ class GoogleAuthStatusResponse(BaseModel):
     """Response model for Google auth status."""
     has_valid_credentials: bool = Field(..., description="Whether the user has valid Google credentials")
     needs_authentication: bool = Field(..., description="Whether the user needs to authenticate with Google")
+
+
+class FirebaseGoogleTokenRequest(BaseModel):
+    """Request model for authenticating with Firebase Google token."""
+    user_id: str = Field(..., description="Firebase user ID")
+    google_token: str = Field(..., description="Google OAuth token from Firebase Authentication")
+
+
+class FirebaseGoogleTokenResponse(BaseModel):
+    """Response model for Firebase Google token authentication."""
+    status: str = Field(..., description="Status of the authentication (authenticated)")
+    success: bool = Field(..., description="Whether authentication was successful")
+    message: Optional[str] = Field(None, description="Error message if authentication failed")

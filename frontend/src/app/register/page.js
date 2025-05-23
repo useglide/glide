@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { useAuth } from '../../context/AuthContext';
 import { registerUser, createClassFolders, getUserCourses } from '../../services/api';
 import { auth } from '../../config/firebase';
+import { FcGoogle } from 'react-icons/fc';
+import { Divider } from '../../components/ui/divider';
 
 export default function Register() {
   const [email, setEmail] = useState('');
@@ -15,8 +17,9 @@ export default function Register() {
   const [canvasApiKey, setCanvasApiKey] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  const { loginWithToken } = useAuth();
+  const { loginWithToken, loginWithGoogle } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e) => {
@@ -95,6 +98,24 @@ export default function Register() {
       setError('Failed to register: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setError('');
+      setGoogleLoading(true);
+
+      // Sign in with Google
+      const result = await loginWithGoogle();
+
+      // After successful Google sign-in, we need to collect Canvas information
+      // For now, we'll redirect to a special page to collect Canvas info
+      router.push('/complete-registration');
+    } catch (err) {
+      setError('Failed to sign in with Google: ' + (err.message || 'Unknown error'));
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -208,6 +229,18 @@ export default function Register() {
             </button>
           </div>
         </form>
+
+        <Divider>or</Divider>
+
+        <button
+          type="button"
+          onClick={handleGoogleSignIn}
+          disabled={googleLoading}
+          className="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+        >
+          <FcGoogle className="h-5 w-5" />
+          {googleLoading ? 'Signing in...' : 'Sign up with Google'}
+        </button>
 
         <div className="mt-4 text-center text-sm">
           <p>

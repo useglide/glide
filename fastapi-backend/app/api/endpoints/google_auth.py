@@ -8,7 +8,9 @@ from app.models.google_auth import (
     GoogleAuthCallbackRequest,
     GoogleAuthCallbackResponse,
     GoogleAuthStatusRequest,
-    GoogleAuthStatusResponse
+    GoogleAuthStatusResponse,
+    FirebaseGoogleTokenRequest,
+    FirebaseGoogleTokenResponse
 )
 from app.services.google.google_auth_service import GoogleAuthService
 from app.core.security import get_current_user
@@ -114,7 +116,7 @@ async def handle_google_auth_callback_get(
                                 window.close();
                             }} else {{
                                 // Fallback to redirect if this is not a popup
-                                window.location.href = '/dashboard?error={error}';
+                                window.location.href = 'http://localhost:3000/dashboard?error={error}';
                             }}
                         }};
                     </script>
@@ -144,7 +146,7 @@ async def handle_google_auth_callback_get(
                                 window.close();
                             } else {
                                 // Fallback to redirect if this is not a popup
-                                window.location.href = '/dashboard?error=no_auth_code';
+                                window.location.href = 'http://localhost:3000/dashboard?error=no_auth_code';
                             }
                         };
                     </script>
@@ -176,7 +178,7 @@ async def handle_google_auth_callback_get(
                             window.close();
                         }} else {{
                             // Fallback to redirect if this is not a popup
-                            window.location.href = '/dashboard?auth_code={code}';
+                            window.location.href = 'http://localhost:3000/dashboard?auth_code={code}';
                         }}
                     }};
                 </script>
@@ -206,7 +208,7 @@ async def handle_google_auth_callback_get(
                             window.close();
                         }} else {{
                             // Fallback to redirect if this is not a popup
-                            window.location.href = '/dashboard?error=server_error';
+                            window.location.href = 'http://localhost:3000/dashboard?error=server_error';
                         }}
                     }};
                 </script>
@@ -320,4 +322,61 @@ async def check_google_auth_status(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while checking Google authentication status."
+        )
+
+
+@router.post("/firebase-token", response_model=FirebaseGoogleTokenResponse, status_code=status.HTTP_200_OK)
+async def authenticate_with_firebase_token(
+    request: FirebaseGoogleTokenRequest,
+    user: Dict[str, Any] = Depends(get_current_user)
+) -> FirebaseGoogleTokenResponse:
+    """
+    Authenticate with Google using a token from Firebase Authentication.
+
+    Args:
+        request: Request containing user ID and Google token from Firebase
+        user: Authenticated user information
+
+    Returns:
+        FirebaseGoogleTokenResponse indicating success or failure
+    """
+    try:
+        # Verify that the user ID in the request matches the authenticated user
+        if user.get("uid") != request.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User ID in request does not match authenticated user"
+            )
+
+        # Initialize GoogleAuthService
+        auth_service = GoogleAuthService(user_id=request.user_id)
+
+        # Handle the Firebase Google token
+        auth_result = auth_service.initialize_auth_for_registration(
+            request.user_id,
+            google_token=request.google_token
+        )
+
+        if auth_result.get("status") == "authenticated":
+            return FirebaseGoogleTokenResponse(
+                status="authenticated",
+                success=auth_result.get("success", False),
+                message=None if auth_result.get("success", False) else "Authentication failed"
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=auth_result.get("message", "Failed to authenticate with Google")
+            )
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        # Log the error
+        print(f"Error handling Firebase Google token: {str(e)}")
+
+        # Return a user-friendly error
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while processing the Firebase Google token."
         )
