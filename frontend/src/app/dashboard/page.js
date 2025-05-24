@@ -10,7 +10,9 @@ import {
   getFavoriteCourses,
   addFavoriteCourse,
   removeFavoriteCourse,
-  updateFavoriteCourseColor
+  updateFavoriteCourseColor,
+  updateFavoriteCourseDisplayName,
+  getRemovedCourses
 } from '../../services/api';
 import { CurrentCourses } from '../../components/CurrentCourses';
 import { UpcomingAssignments } from '../../components/UpcomingAssignments';
@@ -36,6 +38,7 @@ export default function Dashboard() {
 
   // State to track favorite/current courses
   const [favoriteCourses, setFavoriteCourses] = useState([]);
+  const [favoriteCoursesData, setFavoriteCoursesData] = useState([]); // Store complete favorite data with colors
   const [favoriteCoursesLoading, setFavoriteCoursesLoading] = useState(false);
 
   // Use refs to track if data has been cached
@@ -240,10 +243,23 @@ export default function Dashboard() {
         const favorites = await getFavoriteCourses();
         console.log('Fetched favorite courses:', favorites);
 
+        // Store the complete favorite data for color information
+        setFavoriteCoursesData(favorites || []);
+        
         // Extract just the IDs for compatibility with existing code
         let favoriteIds = [];
         if (favorites && Array.isArray(favorites)) {
           favoriteIds = favorites.map(course => course.id);
+        }
+
+        // Get list of explicitly removed courses to prevent auto-re-adding
+        let removedCourseIds = [];
+        try {
+          removedCourseIds = await getRemovedCourses({ bypassCache: true });
+          console.log('Removed course IDs:', removedCourseIds);
+        } catch (removedError) {
+          console.error('Error fetching removed courses:', removedError);
+          // Continue with empty array if there's an error
         }
 
         // Check if we have detailed course data with courses
@@ -275,16 +291,15 @@ export default function Dashboard() {
           // If we have current courses, add them to favorites if they're not already there
           // Note: The backend will handle checking if a course was explicitly removed by the user
           if (currentCourses.length > 0) {
+            console.log('Checking current courses to auto-add. Removed courses:', removedCourseIds);
             let favoritesChanged = false;
 
             for (const course of currentCourses) {
-              if (!favoriteIds.includes(course.id)) {
+              // Only add if not in favorites AND not explicitly removed by user
+              if (!favoriteIds.includes(course.id) && !removedCourseIds.includes(course.id)) {
                 console.log(`Adding current course ${course.id} to favorites`);
                 try {
                   await addFavoriteCourse(course.id);
-                  // The backend will check if this course was explicitly removed by the user
-                  // and will not add it back if it was. We'll refresh the favorites to get the
-                  // accurate list.
                   const updatedFavorites = await getFavoriteCourses();
                   if (updatedFavorites && Array.isArray(updatedFavorites)) {
                     favoriteIds = updatedFavorites.map(course => course.id);
@@ -302,21 +317,19 @@ export default function Dashboard() {
             }
           }
 
-          // If we still have no favorites, use the first 6 courses
+          // If we still have no favorites, use the first 6 courses (excluding removed ones)
           if (favoriteIds.length === 0) {
             console.log('No favorites found after checking current courses, defaulting to first 6 courses');
-            const defaultFavorites = detailedCourseData.data.courses.slice(0, 6).map(c => c.id);
+            const availableCourses = detailedCourseData.data.courses.filter(c => !removedCourseIds.includes(c.id));
+            const defaultFavorites = availableCourses.slice(0, 6).map(c => c.id);
 
             // Add these default courses to favorites in Firestore
             console.log('Adding default courses to favorites:', defaultFavorites);
             for (const courseId of defaultFavorites) {
-              const course = detailedCourseData.data.courses.find(c => c.id === courseId);
-              if (course) {
-                try {
-                  await addFavoriteCourse(courseId);
-                } catch (err) {
-                  console.error(`Failed to add default course ${courseId} to favorites:`, err);
-                }
+              try {
+                await addFavoriteCourse(courseId);
+              } catch (err) {
+                console.error(`Failed to add default course ${courseId} to favorites:`, err);
               }
             }
 
@@ -324,8 +337,10 @@ export default function Dashboard() {
           }
         }
 
-        // Set the favorite courses
-        setFavoriteCourses(favoriteIds);
+        // Set the favorite courses (excluding any that are explicitly removed)
+        const finalFavoriteIds = favoriteIds.filter(id => !removedCourseIds.includes(id));
+        console.log('Final favorite courses after removing excluded:', finalFavoriteIds);
+        setFavoriteCourses(finalFavoriteIds);
       } catch (error) {
         console.error('Error fetching favorite courses:', error);
 
@@ -419,11 +434,29 @@ export default function Dashboard() {
       // Refresh favorite courses to get the updated color
       const favorites = await getFavoriteCourses();
       if (favorites && Array.isArray(favorites)) {
+        setFavoriteCoursesData(favorites);
         const favoriteIds = favorites.map(course => course.id);
         setFavoriteCourses(favoriteIds);
       }
     } catch (error) {
       console.error('Error updating favorite course color:', error);
+    }
+  };
+
+  // Handle updating a favorite course's display name
+  const handleUpdateFavoriteDisplayName = async (courseId, displayName) => {
+    try {
+      await updateFavoriteCourseDisplayName(courseId, displayName);
+
+      // Refresh favorite courses to get the updated display name
+      const favorites = await getFavoriteCourses();
+      if (favorites && Array.isArray(favorites)) {
+        setFavoriteCoursesData(favorites);
+        const favoriteIds = favorites.map(course => course.id);
+        setFavoriteCourses(favoriteIds);
+      }
+    } catch (error) {
+      console.error('Error updating favorite course display name:', error);
     }
   };
 
@@ -661,15 +694,24 @@ export default function Dashboard() {
 
         {/* Current Courses Section */}
         <CurrentCourses
-          courses={detailedCourseData.data?.courses?.filter(course =>
+          courses={(detailedCourseData.data?.courses?.filter(course =>
             favoriteCourses.includes(course.id)
-          ) || []}
+          ) || []).map(course => {
+            // Merge course data with favorite color information
+            const favoriteData = favoriteCoursesData.find(fav => fav.id === course.id);
+            return {
+              ...course,
+              customColor: favoriteData?.color || null,
+              displayName: favoriteData?.displayName || null
+            };
+          })}
           allCourses={detailedCourseData.data?.courses || []}
           loading={detailedCourseData.loading || favoriteCoursesLoading}
           refreshing={refreshingCache}
           onAddCourse={handleAddCourse}
           onRemoveCourse={handleRemoveCourse}
           onUpdateColor={handleUpdateFavoriteColor}
+          onUpdateDisplayName={handleUpdateFavoriteDisplayName}
           onRefreshData={handleRefreshCache}
         />
 

@@ -16,4 +16,13 @@ router.delete('/favorite-courses/:courseId', authMiddleware, favoriteCoursesCont
 // Update a favorite course's color
 router.patch('/favorite-courses/:courseId/color', authMiddleware, favoriteCoursesController.updateFavoriteCourseColor);
 
+// Update a favorite course's display name
+router.patch('/favorite-courses/:courseId/display-name', authMiddleware, favoriteCoursesController.updateFavoriteCourseDisplayName);
+
+// Get user's explicitly removed courses
+router.get('/removed-courses', authMiddleware, favoriteCoursesController.getRemovedCourses);
+
+// Clear user's removed courses list (reset preferences)
+router.delete('/removed-courses', authMiddleware, favoriteCoursesController.clearRemovedCourses);
+
 module.exports = router;

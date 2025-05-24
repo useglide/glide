@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { PlusIcon, ChevronDownIcon, ChevronUpIcon, Settings, RefreshCw, ArrowUpRight } from 'lucide-react';
 import { CourseSelectionModal } from './CourseSelectionModal';
 import { CourseSettingsModal } from './CourseSettingsModal';
@@ -33,6 +33,7 @@ interface CurrentCoursesProps {
   onAddCourse?: (courseId: number) => void;
   onRemoveCourse?: (courseId: number) => void;
   onUpdateColor?: (courseId: number, color: string) => void;
+  onUpdateDisplayName?: (courseId: number, displayName: string) => void;
   onRefreshData?: () => void;
 }
 
@@ -44,6 +45,7 @@ export function CurrentCourses({
   onAddCourse,
   onRemoveCourse,
   onUpdateColor,
+  onUpdateDisplayName,
   onRefreshData
 }: CurrentCoursesProps) {
 
@@ -56,8 +58,6 @@ export function CurrentCourses({
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   // State to track the currently selected course for settings
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  // State to store courses with custom settings
-  const [customizedCourses, setCustomizedCourses] = useState<Course[]>([]);
 
   // Course color mapping
   const courseColors = [
@@ -68,25 +68,6 @@ export function CurrentCourses({
     'bg-[var(--course-pink)]',
     'bg-[var(--course-indigo)]'
   ];
-
-  // Initialize customized courses from localStorage on component mount
-  useEffect(() => {
-    const savedCourses = localStorage.getItem('customizedCourses');
-    if (savedCourses) {
-      try {
-        setCustomizedCourses(JSON.parse(savedCourses));
-      } catch (error) {
-        console.error('Failed to parse customized courses from localStorage:', error);
-      }
-    }
-  }, []);
-
-  // Save customized courses to localStorage whenever they change
-  useEffect(() => {
-    if (customizedCourses.length > 0) {
-      localStorage.setItem('customizedCourses', JSON.stringify(customizedCourses));
-    }
-  }, [customizedCourses]);
 
   // If loading, show skeleton
   if (loading) {
@@ -139,36 +120,18 @@ export function CurrentCourses({
 
   // Handle saving course settings
   const handleSaveSettings = (courseId: number, displayName: string, customColor: string) => {
-    // Find the course in the courses array
-    const course = courses.find(c => c.id === courseId);
-    if (!course) return;
-
-    // Create a new customized course or update existing one
-    const updatedCourse = { ...course, displayName, customColor };
-
-    // Check if this course is already customized
-    const existingIndex = customizedCourses.findIndex(c => c.id === courseId);
-
-    if (existingIndex >= 0) {
-      // Update existing customized course
-      const updatedCustomizedCourses = [...customizedCourses];
-      updatedCustomizedCourses[existingIndex] = updatedCourse;
-      setCustomizedCourses(updatedCustomizedCourses);
-    } else {
-      // Add new customized course
-      setCustomizedCourses([...customizedCourses, updatedCourse]);
-    }
-
-    // If we have an onUpdateColor callback, call it with the course ID and color
+    // Update the color via the parent component's callback
     if (onUpdateColor) {
       onUpdateColor(courseId, customColor);
     }
+    
+    // Update the display name via the parent component's callback
+    if (onUpdateDisplayName) {
+      onUpdateDisplayName(courseId, displayName);
+    }
   };
 
-  // Get customized course data if available
-  const getCustomizedCourse = (courseId: number) => {
-    return customizedCourses.find(c => c.id === courseId);
-  };
+
 
   // Handle refresh button click
   const handleRefresh = () => {
@@ -217,7 +180,6 @@ export function CurrentCourses({
                 course={course}
                 colorClass={courseColors[index % courseColors.length]}
                 onOpenSettings={handleOpenSettings}
-                customizedCourse={getCustomizedCourse(course.id)}
               />
             ))}
 
@@ -297,13 +259,11 @@ export function CurrentCourses({
 function CourseCard({
   course,
   colorClass,
-  onOpenSettings,
-  customizedCourse
+  onOpenSettings
 }: {
   course: Course,
   colorClass: string,
-  onOpenSettings: (course: Course) => void,
-  customizedCourse?: Course | null
+  onOpenSettings: (course: Course) => void
 }) {
 
   // Format the grade to show as a percentage
@@ -317,10 +277,10 @@ function CourseCard({
     : null;
 
   // Use custom color if available, otherwise use the default color
-  const cardColor = customizedCourse?.customColor || colorClass;
+  const cardColor = course.customColor || colorClass;
 
   // Use custom display name if available, otherwise use the default name
-  const displayName = customizedCourse?.displayName || course.name;
+  const displayName = course.displayName || course.name;
 
   // Determine if the card color is light or dark
   let bgColor: string;

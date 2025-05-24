@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { getDetailedCourseData, getAssignmentDetails } from '@/services/api';
 import { Header } from '@/components/Header';
-import { ChevronLeft, RefreshCw, Loader2 } from 'lucide-react';
+import { ChevronLeft, RefreshCw, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import Link from 'next/link';
 import { darkenColor, isLightColor } from '@/lib/utils';
 
@@ -91,6 +91,7 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
 
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [assignmentsExpanded, setAssignmentsExpanded] = useState(false);
   const [courseData, setCourseData] = useState<{
     loading: boolean;
     gradesLoading: boolean;
@@ -377,7 +378,28 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
             {/* Course Content Tabs */}
             <div className="bg-[var(--white-grey)] rounded-lg shadow-lg p-6">
               <div className="mb-6">
-                <h2 className="text-2xl font-bold text-[var(--primary-color)] mb-4">Assignments</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-bold text-[var(--primary-color)]">Assignments</h2>
+                  {courseData.assignments.length > 5 && (
+                    <button
+                      type="button"
+                      onClick={() => setAssignmentsExpanded(!assignmentsExpanded)}
+                      className="flex items-center px-3 py-1.5 text-sm font-medium text-[var(--glide-blue)] hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                      {assignmentsExpanded ? (
+                        <>
+                          <span className="mr-1 cursor-pointer">Show Less</span>
+                          <ChevronUp className="h-4 w-4" />
+                        </>
+                      ) : (
+                        <>
+                          <span className="mr-1 cursor-pointer">Show All ({courseData.assignments.length})</span>
+                          <ChevronDown className="h-4 w-4" />
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
                 {courseData.assignments.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full bg-white rounded-lg">
@@ -390,7 +412,10 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
                         </tr>
                       </thead>
                       <tbody>
-                        {courseData.assignments.map(assignment => {
+                        {(courseData.assignments.length > 5 && !assignmentsExpanded 
+                          ? courseData.assignments.slice(0, 5) 
+                          : courseData.assignments
+                        ).map(assignment => {
                           // Format due date
                           const dueDate = assignment.due_at
                             ? new Date(assignment.due_at).toLocaleDateString([], {

@@ -470,3 +470,74 @@ export const updateFavoriteCourseColor = async (courseId, color) => {
     throw error;
   }
 };
+
+/**
+ * Update a favorite course's display name
+ * @param {number} courseId - Course ID to update
+ * @param {string} displayName - New display name for the course
+ * @returns {Promise<Object>} Result of operation
+ */
+export const updateFavoriteCourseDisplayName = async (courseId, displayName) => {
+  try {
+    return fetchWithAuth(joinUrl(API_URL, `favorite-courses/${courseId}/display-name`), {
+      method: 'PATCH',
+      body: JSON.stringify({ displayName })
+    });
+  } catch (error) {
+    console.error('Failed to update favorite course display name:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get user's explicitly removed courses
+ * @param {Object} options - Options for the request
+ * @returns {Promise<Array>} List of removed course IDs
+ */
+export const getRemovedCourses = async (options = {}) => {
+  const { cache = 'force-cache', bypassCache = false } = options;
+
+  try {
+    const token = await getIdToken();
+    const user = auth.currentUser;
+
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    // Add user ID and timestamp to URL to ensure unique cache per user
+    const url = joinUrl(API_URL, 'removed-courses');
+    const urlWithUserAndCache = bypassCache
+      ? `${url}?uid=${user.uid}&_=${Date.now()}`
+      : `${url}?uid=${user.uid}`;
+
+    console.log(`Fetching removed courses for user: ${user.uid}`);
+    console.log(`🔍 Making request to: ${urlWithUserAndCache}`);
+
+    // Use the cache option to enable browser caching
+    const response = await fetch(urlWithUserAndCache, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      cache: bypassCache ? 'no-store' : cache,
+      // Add next.js specific cache control
+      next: bypassCache ? { revalidate: 0 } : undefined
+    });
+
+    console.log(`🔍 Response status: ${response.status}`);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error(`🔍 API error response:`, errorData);
+      throw new Error(errorData.error || errorData.detail || `API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log(`🔍 API response data:`, result);
+    return result;
+  } catch (error) {
+    console.error('Removed courses fetch failed:', error);
+    throw error;
+  }
+};
