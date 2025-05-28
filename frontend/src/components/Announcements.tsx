@@ -25,34 +25,6 @@ export function Announcements({
   announcements = [],
   loading = false
 }: AnnouncementsProps) {
-  // TEST DATA - Delete this section when real data is available
-  const testAnnouncements: Announcement[] = [
-    {
-      id: 1,
-      title: "Spring Break Announcement",
-      message: "Welcome to Spring Semester 2025! Check your course schedules and ensure all registration holds are cleared before classes begin on January 15th.",
-      posted_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
-      context_code: "course_101",
-      context_name: "University Announcements"
-    },
-    {
-      id: 2,
-      title: "Spring Break Announcement",
-      message: "Welcome to Spring Semester 2025! Check your course schedules and ensure all registration holds are cleared before classes begin on January 15th.",
-      posted_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
-      context_code: "course_101",
-      context_name: "University Announcements"
-    },
-    {
-      id: 3,
-      title: "Glide Maintenance",
-      html: "<p>Glide platform maintenance is scheduled for Sunday, 2AM-4AM. Services will be unavailable during this time.</p>",
-      posted_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-      context_code: "course_102",
-      context_name: "System Announcements"
-    }
-  ];
-
   // If loading, show skeleton
   if (loading) {
     return (
@@ -75,8 +47,8 @@ export function Announcements({
     );
   }
 
-  // Use test data if no announcements are provided
-  const announcementsToDisplay = announcements.length > 0 ? announcements : testAnnouncements;
+  // Use the real announcements data
+  const announcementsToDisplay = announcements;
 
   // Empty state
   const hasNoAnnouncements = announcementsToDisplay.length === 0;
@@ -99,7 +71,7 @@ export function Announcements({
       ) : (
         <div className="flex-grow overflow-auto">
           {/* Announcement items */}
-          {announcementsToDisplay.map((announcement, index) => (
+          {announcementsToDisplay.map((announcement: Announcement, index: number) => (
             <AnnouncementItem
               key={announcement.id}
               announcement={announcement}
@@ -125,7 +97,7 @@ export function Announcements({
 
 // Announcement Item Component
 function AnnouncementItem({ announcement, isLast = false }: { announcement: Announcement; isLast?: boolean }) {
-  // Extract course name from context_code (format: course_123)
+  // Extract course name from context_name or context_code
   const courseName = announcement.context_name ||
     (announcement.context_code ?
       announcement.context_code.replace('course_', 'Course ') :
@@ -174,10 +146,16 @@ function AnnouncementItem({ announcement, isLast = false }: { announcement: Anno
           <h3 className="font-medium text-[var(--primary-color)]">{announcement.title}</h3>
           <p className="text-sm text-[var(--secondary-color)]">{courseName}</p>
           <div className="text-[var(--secondary-color)] mt-2 text-sm">
-            {announcement.message ? (
-              <p>{announcement.message}</p>
-            ) : announcement.html ? (
-              <div dangerouslySetInnerHTML={{ __html: announcement.html }} />
+            {announcement.html ? (
+              <div
+                className="announcement-content"
+                dangerouslySetInnerHTML={{ __html: announcement.html }}
+              />
+            ) : announcement.message ? (
+              <div
+                className="announcement-content"
+                dangerouslySetInnerHTML={{ __html: announcement.message }}
+              />
             ) : (
               <p>No content available</p>
             )}

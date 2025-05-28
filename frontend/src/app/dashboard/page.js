@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -25,13 +25,13 @@ export default function Dashboard() {
   const [refreshingCache, setRefreshingCache] = useState(false);
   const [creatingFolders, setCreatingFolders] = useState(false);
   const [twoStageData, setTwoStageData] = useState({
-    loading: false,
+    loading: true,
     error: null,
     data: null
   });
 
   const [detailedCourseData, setDetailedCourseData] = useState({
-    loading: false,
+    loading: true,
     error: null,
     data: null
   });
@@ -39,12 +39,7 @@ export default function Dashboard() {
   // State to track favorite/current courses
   const [favoriteCourses, setFavoriteCourses] = useState([]);
   const [favoriteCoursesData, setFavoriteCoursesData] = useState([]); // Store complete favorite data with colors
-  const [favoriteCoursesLoading, setFavoriteCoursesLoading] = useState(false);
-
-  // Use refs to track if data has been cached
-  const stage1CachedRef = useRef(false);
-  const stage2CachedRef = useRef(false);
-  const detailedDataCachedRef = useRef(false);
+  const [favoriteCoursesLoading, setFavoriteCoursesLoading] = useState(true);
 
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -141,77 +136,51 @@ export default function Dashboard() {
     };
   }, [user]);
 
-  // Fetch two-stage data with caching
+  // Fetch data
   useEffect(() => {
     if (!user) {
       router.push('/login');
       return;
     }
 
-    const fetchTwoStageData = async () => {
+    const fetchData = async () => {
       try {
+        // Fetch two-stage data
         setTwoStageData(prev => ({ ...prev, loading: true, error: null }));
-
-        // First fetch with force-cache to ensure it's cached in the browser
-        console.log('Fetching two-stage data with caching...');
-        const data = await getTwoStageData({ cache: 'force-cache' });
-
-        // Set the data and mark both stages as cached
+        console.log('Fetching two-stage data...');
+        const twoStageResult = await getTwoStageData();
         setTwoStageData(prev => ({
           ...prev,
           loading: false,
-          data: data
+          data: twoStageResult
         }));
+        console.log('Two-stage data fetched successfully:', twoStageResult);
 
-        stage1CachedRef.current = true;
-        stage2CachedRef.current = true;
+        // Fetch detailed course data
+        setDetailedCourseData(prev => ({ ...prev, loading: true, error: null }));
+        console.log('Fetching detailed course data...');
+        const detailedResult = await getDetailedCourseData();
+        setDetailedCourseData(prev => ({
+          ...prev,
+          loading: false,
+          data: detailedResult
+        }));
+        console.log('Detailed course data fetched successfully:', detailedResult);
 
-        console.log('Two-stage data cached successfully:', data);
-
-        // Now fetch detailed course data after two-stage data is cached
-        await fetchDetailedCourseData();
+        // Log the structure of assignments to check if we have upcoming assignments
+        if (detailedResult && detailedResult.assignments) {
+          console.log('Assignments structure:', Object.keys(detailedResult.assignments));
+          if (detailedResult.assignments.upcoming) {
+            console.log('Upcoming assignments sample:', detailedResult.assignments.upcoming.slice(0, 2));
+          }
+        }
       } catch (err) {
-        console.error('Failed to fetch two-stage data:', err);
+        console.error('Failed to fetch data:', err);
         setTwoStageData(prev => ({
           ...prev,
           loading: false,
           error: err.message || 'Failed to fetch two-stage data'
         }));
-      }
-    };
-
-    const fetchDetailedCourseData = async () => {
-      try {
-        // Only proceed if two-stage data is cached
-        if (!stage1CachedRef.current || !stage2CachedRef.current) {
-          console.log('Two-stage data not cached yet, skipping detailed course data fetch');
-          return;
-        }
-
-        setDetailedCourseData(prev => ({ ...prev, loading: true, error: null }));
-
-        console.log('Fetching detailed course data...');
-        const data = await getDetailedCourseData({ cache: 'force-cache' });
-
-        setDetailedCourseData(prev => ({
-          ...prev,
-          loading: false,
-          data: data
-        }));
-
-        detailedDataCachedRef.current = true;
-
-        console.log('Detailed course data cached successfully:', data);
-
-        // Log the structure of assignments to check if we have upcoming assignments
-        if (data && data.assignments) {
-          console.log('Assignments structure:', Object.keys(data.assignments));
-          if (data.assignments.upcoming) {
-            console.log('Upcoming assignments sample:', data.assignments.upcoming.slice(0, 2));
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch detailed course data:', err);
         setDetailedCourseData(prev => ({
           ...prev,
           loading: false,
@@ -220,8 +189,7 @@ export default function Dashboard() {
       }
     };
 
-    // Start with the two-stage data fetch
-    fetchTwoStageData();
+    fetchData();
   }, [user, router]);
 
   const handleLogout = async () => {
@@ -245,7 +213,7 @@ export default function Dashboard() {
 
         // Store the complete favorite data for color information
         setFavoriteCoursesData(favorites || []);
-        
+
         // Extract just the IDs for compatibility with existing code
         let favoriteIds = [];
         if (favorites && Array.isArray(favorites)) {
@@ -255,7 +223,7 @@ export default function Dashboard() {
         // Get list of explicitly removed courses to prevent auto-re-adding
         let removedCourseIds = [];
         try {
-          removedCourseIds = await getRemovedCourses({ bypassCache: true });
+          removedCourseIds = await getRemovedCourses();
           console.log('Removed course IDs:', removedCourseIds);
         } catch (removedError) {
           console.error('Error fetching removed courses:', removedError);
@@ -344,36 +312,9 @@ export default function Dashboard() {
       } catch (error) {
         console.error('Error fetching favorite courses:', error);
 
-        // Fallback to localStorage for backward compatibility
-        try {
-          const storedFavorites = localStorage.getItem('favoriteCourses');
-          if (storedFavorites) {
-            const parsedFavorites = JSON.parse(storedFavorites);
-            setFavoriteCourses(parsedFavorites);
-
-            // Migrate localStorage favorites to Firestore
-            if (detailedCourseData.data?.courses) {
-              for (const courseId of parsedFavorites) {
-                const course = detailedCourseData.data.courses.find(c => c.id === courseId);
-                if (course) {
-                  try {
-                    await addFavoriteCourse(courseId);
-                  } catch (err) {
-                    console.error(`Failed to migrate course ${courseId} to Firestore:`, err);
-                  }
-                }
-              }
-            }
-          } else if (detailedCourseData.data?.courses) {
-            // Default to first 6 courses if no favorites are stored
-            setFavoriteCourses(detailedCourseData.data.courses.slice(0, 6).map(c => c.id));
-          }
-        } catch (e) {
-          console.error('Error parsing localStorage favorite courses:', e);
-          if (detailedCourseData.data?.courses) {
-            // Default to first 6 courses if there's an error
-            setFavoriteCourses(detailedCourseData.data.courses.slice(0, 6).map(c => c.id));
-          }
+        // Default to first 6 courses if there's an error
+        if (detailedCourseData.data?.courses) {
+          setFavoriteCourses(detailedCourseData.data.courses.slice(0, 6).map(c => c.id));
         }
       } finally {
         setFavoriteCoursesLoading(false);
@@ -400,9 +341,6 @@ export default function Dashboard() {
 
         // Update local state
         setFavoriteCourses(prev => [...prev, courseId]);
-
-        // For backward compatibility
-        localStorage.setItem('favoriteCourses', JSON.stringify([...favoriteCourses, courseId]));
       }
     } catch (error) {
       console.error('Error adding course to favorites:', error);
@@ -418,9 +356,6 @@ export default function Dashboard() {
       // Update local state
       const newFavorites = favoriteCourses.filter(id => id !== courseId);
       setFavoriteCourses(newFavorites);
-
-      // For backward compatibility
-      localStorage.setItem('favoriteCourses', JSON.stringify(newFavorites));
     } catch (error) {
       console.error('Error removing course from favorites:', error);
     }
@@ -568,74 +503,37 @@ export default function Dashboard() {
     }
   };
 
-  const handleRefreshCache = async () => {
+  const handleRefreshData = async () => {
     try {
       setRefreshingCache(true);
       setError('');
-
-      // Clear browser cache for API endpoints
-      if (typeof window !== 'undefined' && 'caches' in window) {
-        try {
-          // Try to clear the Next.js data cache
-          const cacheKeys = await window.caches.keys();
-          for (const key of cacheKeys) {
-            // Only clear caches that might contain API data
-            if (key.includes('next-data') || key.includes('api-cache')) {
-              await window.caches.delete(key);
-              console.log(`Cleared cache: ${key}`);
-            }
-          }
-          console.log('Cache cleared before refresh');
-        } catch (error) {
-          console.error('Error clearing cache:', error);
-        }
-      }
-
-      // Reset cache status
-      stage1CachedRef.current = false;
-      stage2CachedRef.current = false;
-      detailedDataCachedRef.current = false;
 
       // Set loading state
       setTwoStageData(prev => ({ ...prev, loading: true, error: null }));
       setDetailedCourseData(prev => ({ ...prev, loading: true, error: null }));
 
-      console.log('Refreshing cache by bypassing browser cache...');
+      console.log('Refreshing data...');
 
-      // Fetch data with cache bypassing
-      const data = await getTwoStageData({ bypassCache: true });
-      console.log('Two-stage data refreshed successfully:', data);
+      // Fetch fresh data
+      const twoStageResult = await getTwoStageData();
+      console.log('Two-stage data refreshed successfully:', twoStageResult);
 
-      // Update the data and mark both stages as cached
       setTwoStageData(prev => ({
         ...prev,
         loading: false,
-        data: data
+        data: twoStageResult
       }));
-
-      // Mark as cached
-      stage1CachedRef.current = true;
-      stage2CachedRef.current = true;
 
       // Now fetch detailed course data
       console.log('Refreshing detailed course data...');
-      const detailedData = await getDetailedCourseData({ bypassCache: true });
-      console.log('Detailed course data refreshed successfully:', detailedData);
+      const detailedResult = await getDetailedCourseData();
+      console.log('Detailed course data refreshed successfully:', detailedResult);
 
-      // Update the detailed course data state
       setDetailedCourseData(prev => ({
         ...prev,
         loading: false,
-        data: detailedData
+        data: detailedResult
       }));
-
-      // Mark detailed data as cached
-      detailedDataCachedRef.current = true;
-
-      // Force a re-render of the components that use this data
-      // by creating a new reference for the data objects
-      setTwoStageData(prev => ({ ...prev, data: { ...prev.data } }));
-      setDetailedCourseData(prev => ({ ...prev, data: { ...prev.data } }));
 
       // Show success message
       setError('Data refreshed successfully!');
@@ -661,6 +559,42 @@ export default function Dashboard() {
       setRefreshingCache(false);
     }
   };
+
+  // Calculate upcoming deadlines from assignment data
+  const calculateUpcomingDeadlines = (assignments) => {
+    if (!assignments || assignments.length === 0) return { total: 0, thisWeek: 0 };
+
+    const now = new Date();
+    const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    let totalUpcoming = 0;
+    let dueThisWeek = 0;
+
+    assignments.forEach(assignment => {
+      if (!assignment.due_at) return;
+
+      try {
+        const dueDate = new Date(assignment.due_at);
+
+        // Count assignments due in the future
+        if (dueDate > now) {
+          totalUpcoming++;
+
+          // Count assignments due within the next week
+          if (dueDate <= oneWeekFromNow) {
+            dueThisWeek++;
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing due date for deadline calculation:', assignment.due_at, e);
+      }
+    });
+
+    return { total: totalUpcoming, thisWeek: dueThisWeek };
+  };
+
+  // Calculate the upcoming deadlines from the current assignment data
+  const upcomingDeadlinesData = calculateUpcomingDeadlines(detailedCourseData.data?.assignments || []);
 
   if (!user) {
     return null; // Will redirect in useEffect
@@ -712,14 +646,14 @@ export default function Dashboard() {
           onRemoveCourse={handleRemoveCourse}
           onUpdateColor={handleUpdateFavoriteColor}
           onUpdateDisplayName={handleUpdateFavoriteDisplayName}
-          onRefreshData={handleRefreshCache}
+          onRefreshData={handleRefreshData}
         />
 
         {/* Upcoming Assignments and Announcements Section */}
         <div className="mt-8 flex flex-col lg:flex-row" style={{ gap: '2rem' }}>
           <div className="lg:w-1/2 flex flex-col">
             <UpcomingAssignments
-              assignments={detailedCourseData.data?.assignments?.upcoming || []}
+              assignments={detailedCourseData.data?.assignments || []}
               loading={detailedCourseData.loading}
             />
           </div>
@@ -736,8 +670,8 @@ export default function Dashboard() {
           loading={detailedCourseData.loading}
           previousGPA={3.75}
           requiredCredits={120}
-          upcomingDeadlines={5}
-          dueThisWeek={3}
+          upcomingDeadlines={upcomingDeadlinesData.total}
+          dueThisWeek={upcomingDeadlinesData.thisWeek}
           courses={detailedCourseData.data?.courses || []}
         />
 

@@ -224,13 +224,10 @@ export const createClassFolders = async (userId, classNames, parentFolderId = nu
 };
 
 /**
- * Get data from the two-stage endpoint with browser caching
- * @param {Object} options - Options for the request
+ * Get data from the two-stage endpoint
  * @returns {Promise<Object>} Two-stage data
  */
-export const getTwoStageData = async (options = {}) => {
-  const { cache = 'force-cache', bypassCache = false } = options;
-
+export const getTwoStageData = async () => {
   try {
     const token = await getIdToken();
     const user = auth.currentUser;
@@ -239,23 +236,15 @@ export const getTwoStageData = async (options = {}) => {
       throw new Error('User not authenticated');
     }
 
-    // Add user ID and timestamp to URL to ensure unique cache per user
     const url = joinUrl(API_URL, 'two-stage-data');
-    const urlWithUserAndCache = bypassCache
-      ? `${url}?uid=${user.uid}&_=${Date.now()}`
-      : `${url}?uid=${user.uid}`;
-
     console.log(`Fetching two-stage data for user: ${user.uid}`);
 
-    // Use the cache option to enable browser caching
-    const response = await fetch(urlWithUserAndCache, {
+    const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      cache: bypassCache ? 'no-store' : cache,
-      // Add next.js specific cache control
-      next: bypassCache ? { revalidate: 0 } : undefined
+      cache: 'no-store'
     });
 
     if (!response.ok) {
@@ -272,13 +261,9 @@ export const getTwoStageData = async (options = {}) => {
 
 /**
  * Get detailed course data (all courses with assignments)
- * This should be called after the two-stage load is cached
- * @param {Object} options - Options for the request
  * @returns {Promise<Object>} Detailed course data
  */
-export const getDetailedCourseData = async (options = {}) => {
-  const { cache = 'force-cache', bypassCache = false } = options;
-
+export const getDetailedCourseData = async () => {
   try {
     const token = await getIdToken();
     const user = auth.currentUser;
@@ -287,23 +272,15 @@ export const getDetailedCourseData = async (options = {}) => {
       throw new Error('User not authenticated');
     }
 
-    // Add user ID and timestamp to URL to ensure unique cache per user
     const url = joinUrl(API_URL, 'courses/detailed');
-    const urlWithUserAndCache = bypassCache
-      ? `${url}?uid=${user.uid}&_=${Date.now()}`
-      : `${url}?uid=${user.uid}`;
-
     console.log(`Fetching detailed course data for user: ${user.uid}`);
 
-    // Use the cache option to enable browser caching
-    const response = await fetch(urlWithUserAndCache, {
+    const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      cache: bypassCache ? 'no-store' : cache,
-      // Add next.js specific cache control
-      next: bypassCache ? { revalidate: 0 } : undefined
+      cache: 'no-store'
     });
 
     if (!response.ok) {
@@ -319,15 +296,11 @@ export const getDetailedCourseData = async (options = {}) => {
 };
 
 /**
- * Get detailed information for a specific assignment
+ * Get announcements for a specific course
  * @param {number} courseId - Course ID
- * @param {number} assignmentId - Assignment ID
- * @param {Object} options - Options for the request
- * @returns {Promise<Object>} Assignment details
+ * @returns {Promise<Object>} Course announcements data
  */
-export const getAssignmentDetails = async (courseId, assignmentId, options = {}) => {
-  const { cache = 'force-cache', bypassCache = false } = options;
-
+export const getCourseAnnouncements = async (courseId) => {
   try {
     const token = await getIdToken();
     const user = auth.currentUser;
@@ -336,23 +309,55 @@ export const getAssignmentDetails = async (courseId, assignmentId, options = {})
       throw new Error('User not authenticated');
     }
 
-    // Add user ID and timestamp to URL to ensure unique cache per user
-    const url = joinUrl(API_URL, `courses/${courseId}/assignments/${assignmentId}/details`);
-    const urlWithUserAndCache = bypassCache
-      ? `${url}?uid=${user.uid}&_=${Date.now()}`
-      : `${url}?uid=${user.uid}`;
+    const url = joinUrl(API_URL, `courses/${courseId}/announcements`);
+    console.log(`Fetching announcements for course ${courseId}`);
 
-    console.log(`Fetching assignment details for user: ${user.uid}, course: ${courseId}, assignment: ${assignmentId}`);
-
-    // Use the cache option to enable browser caching
-    const response = await fetch(urlWithUserAndCache, {
+    const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      cache: bypassCache ? 'no-store' : cache,
-      // Add next.js specific cache control
-      next: bypassCache ? { revalidate: 0 } : undefined
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || errorData.detail || `API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`Course announcements fetch failed for course ${courseId}:`, error);
+    throw error;
+  }
+};
+
+
+
+/**
+ * Get detailed information for a specific assignment
+ * @param {number} courseId - Course ID
+ * @param {number} assignmentId - Assignment ID
+ * @returns {Promise<Object>} Assignment details
+ */
+export const getAssignmentDetails = async (courseId, assignmentId) => {
+  try {
+    const token = await getIdToken();
+    const user = auth.currentUser;
+
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const url = joinUrl(API_URL, `courses/${courseId}/assignments/${assignmentId}/details`);
+    console.log(`Fetching assignment details for user: ${user.uid}, course: ${courseId}, assignment: ${assignmentId}`);
+
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      cache: 'no-store'
     });
 
     if (!response.ok) {
@@ -369,12 +374,9 @@ export const getAssignmentDetails = async (courseId, assignmentId, options = {})
 
 /**
  * Get user's favorite courses
- * @param {Object} options - Options for the request
  * @returns {Promise<Array>} List of favorite courses
  */
-export const getFavoriteCourses = async (options = {}) => {
-  const { cache = 'force-cache', bypassCache = false } = options;
-
+export const getFavoriteCourses = async () => {
   try {
     const token = await getIdToken();
     const user = auth.currentUser;
@@ -383,23 +385,15 @@ export const getFavoriteCourses = async (options = {}) => {
       throw new Error('User not authenticated');
     }
 
-    // Add user ID and timestamp to URL to ensure unique cache per user
     const url = joinUrl(API_URL, 'favorite-courses');
-    const urlWithUserAndCache = bypassCache
-      ? `${url}?uid=${user.uid}&_=${Date.now()}`
-      : `${url}?uid=${user.uid}`;
-
     console.log(`Fetching favorite courses for user: ${user.uid}`);
 
-    // Use the cache option to enable browser caching
-    const response = await fetch(urlWithUserAndCache, {
+    const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      cache: bypassCache ? 'no-store' : cache,
-      // Add next.js specific cache control
-      next: bypassCache ? { revalidate: 0 } : undefined
+      cache: 'no-store'
     });
 
     if (!response.ok) {
@@ -491,12 +485,9 @@ export const updateFavoriteCourseDisplayName = async (courseId, displayName) => 
 
 /**
  * Get user's explicitly removed courses
- * @param {Object} options - Options for the request
  * @returns {Promise<Array>} List of removed course IDs
  */
-export const getRemovedCourses = async (options = {}) => {
-  const { cache = 'force-cache', bypassCache = false } = options;
-
+export const getRemovedCourses = async () => {
   try {
     const token = await getIdToken();
     const user = auth.currentUser;
@@ -505,36 +496,27 @@ export const getRemovedCourses = async (options = {}) => {
       throw new Error('User not authenticated');
     }
 
-    // Add user ID and timestamp to URL to ensure unique cache per user
     const url = joinUrl(API_URL, 'removed-courses');
-    const urlWithUserAndCache = bypassCache
-      ? `${url}?uid=${user.uid}&_=${Date.now()}`
-      : `${url}?uid=${user.uid}`;
-
     console.log(`Fetching removed courses for user: ${user.uid}`);
-    console.log(`🔍 Making request to: ${urlWithUserAndCache}`);
 
-    // Use the cache option to enable browser caching
-    const response = await fetch(urlWithUserAndCache, {
+    const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      cache: bypassCache ? 'no-store' : cache,
-      // Add next.js specific cache control
-      next: bypassCache ? { revalidate: 0 } : undefined
+      cache: 'no-store'
     });
 
-    console.log(`🔍 Response status: ${response.status}`);
+    console.log(`Response status: ${response.status}`);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error(`🔍 API error response:`, errorData);
+      console.error(`API error response:`, errorData);
       throw new Error(errorData.error || errorData.detail || `API error: ${response.status}`);
     }
 
     const result = await response.json();
-    console.log(`🔍 API response data:`, result);
+    console.log(`API response data:`, result);
     return result;
   } catch (error) {
     console.error('Removed courses fetch failed:', error);

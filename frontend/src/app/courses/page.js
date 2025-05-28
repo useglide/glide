@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import { getDetailedCourseData } from '../../services/api';
@@ -11,13 +11,12 @@ export default function CoursesPage() {
   const [error, setError] = useState('');
   const [refreshingCache, setRefreshingCache] = useState(false);
   const [detailedCourseData, setDetailedCourseData] = useState({
-    loading: false,
+    loading: true,
     error: null,
     data: null
   });
 
-  // Use refs to track if data has been cached
-  const detailedDataCachedRef = useRef(false);
+
 
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -34,7 +33,7 @@ export default function CoursesPage() {
         setDetailedCourseData(prev => ({ ...prev, loading: true, error: null }));
 
         console.log('Fetching detailed course data...');
-        const data = await getDetailedCourseData({ cache: 'force-cache' });
+        const data = await getDetailedCourseData();
 
         setDetailedCourseData(prev => ({
           ...prev,
@@ -42,9 +41,7 @@ export default function CoursesPage() {
           data: data
         }));
 
-        detailedDataCachedRef.current = true;
-
-        console.log('Detailed course data cached successfully:', data);
+        console.log('Detailed course data fetched successfully:', data);
       } catch (err) {
         console.error('Failed to fetch detailed course data:', err);
         setDetailedCourseData(prev => ({
@@ -67,37 +64,16 @@ export default function CoursesPage() {
     }
   };
 
-  const handleRefreshCache = async () => {
+  const handleRefreshData = async () => {
     try {
       setRefreshingCache(true);
       setError('');
-
-      // Clear browser cache for API endpoints
-      if (typeof window !== 'undefined' && 'caches' in window) {
-        try {
-          // Try to clear the Next.js data cache
-          const cacheKeys = await window.caches.keys();
-          for (const key of cacheKeys) {
-            // Only clear caches that might contain API data
-            if (key.includes('next-data') || key.includes('api-cache')) {
-              await window.caches.delete(key);
-              console.log(`Cleared cache: ${key}`);
-            }
-          }
-          console.log('Cache cleared before refresh');
-        } catch (error) {
-          console.error('Error clearing cache:', error);
-        }
-      }
-
-      // Reset cache status
-      detailedDataCachedRef.current = false;
 
       // Set loading state
       setDetailedCourseData(prev => ({ ...prev, loading: true, error: null }));
 
       console.log('Refreshing detailed course data...');
-      const detailedData = await getDetailedCourseData({ bypassCache: true });
+      const detailedData = await getDetailedCourseData();
 
       // Update state with new data
       setDetailedCourseData(prev => ({
@@ -105,12 +81,6 @@ export default function CoursesPage() {
         loading: false,
         data: detailedData
       }));
-
-      // Mark detailed data as cached
-      detailedDataCachedRef.current = true;
-
-      // Force a re-render by creating a new reference for the data object
-      setDetailedCourseData(prev => ({ ...prev, data: { ...prev.data } }));
 
       console.log('Detailed course data refreshed successfully:', detailedData);
 
@@ -169,7 +139,7 @@ export default function CoursesPage() {
           courses={detailedCourseData.data?.courses || []}
           loading={detailedCourseData.loading}
           refreshing={refreshingCache}
-          onRefreshData={handleRefreshCache}
+          onRefreshData={handleRefreshData}
         />
       </div>
     </>

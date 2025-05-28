@@ -31,51 +31,7 @@ export function UpcomingAssignments({
   assignments = [],
   loading = false
 }: UpcomingAssignmentsProps) {
-  // TEST DATA - Delete this section when real data is available and make sure it works
-  const testAssignments: Assignment[] = [
-    {
-      id: 1001,
-      name: "C.3 Types of Functions Project",
-      due_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days from now
-      course_code: "2025SP Discrete Math(MAT-303)",
-      course_id: 101
-    },
-    {
-      id: 1002,
-      name: "Linear Algebra Final Exam",
-      due_at: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days from now
-      course_code: "2025SP Linear Algebra(MAT-304)",
-      course_id: 102
-    },
-    {
-      id: 1003,
-      name: "Programming Assignment #4",
-      due_at: new Date(Date.now() + 0.5 * 24 * 60 * 60 * 1000).toISOString(), // 12 hours from now
-      course_code: "2025SP Computer Science(CS-101)",
-      course_id: 103
-    },
-    {
-      id: 1004,
-      name: "Research Paper Draft",
-      due_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days from now
-      course_code: "2025SP English Composition(ENG-201)",
-      course_id: 104
-    },
-    {
-      id: 1005,
-      name: "Physics Lab Report",
-      due_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
-      course_code: "2025SP Physics(PHY-201)",
-      course_id: 105
-    },
-    {
-      id: 1006,
-      name: "Group Project Presentation",
-      due_at: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day from now
-      course_code: "2025SP Business Management(BUS-301)",
-      course_id: 106
-    }
-  ];
+
   // If loading, show skeleton
   if (loading) {
     return (
@@ -100,11 +56,23 @@ export function UpcomingAssignments({
     );
   }
 
-  // Use test data if no assignments are provided
-  let assignmentsToDisplay = assignments.length > 0 ? assignments : testAssignments;
+  // Filter for upcoming assignments (due in the future) and exclude assignments without due dates
+  const now = new Date();
+
+  let upcomingAssignments = assignments.filter(assignment => {
+    if (!assignment.due_at) return false;
+
+    try {
+      const dueDate = new Date(assignment.due_at);
+      return dueDate > now;
+    } catch (e) {
+      console.error('Error parsing due date:', assignment.due_at, e);
+      return false;
+    }
+  });
 
   // Sort assignments by due date (earliest first)
-  assignmentsToDisplay = [...assignmentsToDisplay].sort((a, b) => {
+  upcomingAssignments = [...upcomingAssignments].sort((a, b) => {
     // Handle null due dates (put them at the end)
     if (!a.due_at) return 1;
     if (!b.due_at) return -1;
@@ -114,7 +82,7 @@ export function UpcomingAssignments({
   });
 
   // Empty state
-  const hasNoAssignments = assignmentsToDisplay.length === 0;
+  const hasNoAssignments = upcomingAssignments.length === 0;
 
   return (
     <div className="bg-[var(--white-grey)] p-10 rounded-lg shadow-lg mb-10 h-full flex flex-col">
@@ -134,7 +102,7 @@ export function UpcomingAssignments({
         <>
           <div className="space-y-4 flex-grow overflow-auto">
             {/* Assignment items */}
-            {assignmentsToDisplay.map((assignment) => (
+            {upcomingAssignments.map((assignment: Assignment) => (
               <AssignmentItem key={assignment.id} assignment={assignment} />
             ))}
           </div>

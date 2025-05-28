@@ -116,7 +116,7 @@ const canvasService = {
   getAnnouncements: async (courses, options = {}) => {
     const {
       latestOnly = false,
-      startDate = '2023-01-01',
+      startDate = null, // Don't default to a specific date
       canvasUrl,
       canvasApiKey
     } = options;
@@ -130,15 +130,64 @@ const canvasService = {
     }
 
     // Build the announcements URL with required parameters
-    const announcementsUrl = '/api/v1/announcements?' +
+    let announcementsUrl = '/api/v1/announcements?' +
       `context_codes[]=${contextCodes.join('&context_codes[]=')}` + // Add context codes for each course
-      `&latest_only=${latestOnly}` + // Get all announcements or just the latest
-      `&start_date=${startDate}`; // Get announcements from this date
+      `&latest_only=${latestOnly}`; // Get all announcements or just the latest
+
+    // Only add start_date if provided
+    if (startDate) {
+      announcementsUrl += `&start_date=${startDate}`;
+    }
+
+    console.log(`Getting announcements for ${courses.length} courses with URL: ${announcementsUrl}`);
 
     return await fetchAllPages(announcementsUrl, {
       canvasUrl,
       canvasApiKey
     });
+  },
+
+  /**
+   * Get announcements for a specific course
+   * @param {number} courseId - Course ID
+   * @param {Object} options - Additional options
+   * @returns {Promise<Array>} List of announcements for the course
+   */
+  getCourseAnnouncements: async (courseId, options = {}) => {
+    const {
+      canvasUrl,
+      canvasApiKey
+    } = options;
+
+    console.log(`Fetching announcements for course ${courseId} using working approach`);
+
+    try {
+      // First get all courses to use the working approach
+      const allCourses = await module.exports.getCourses({
+        includeTerms: false,
+        includeTeachers: false,
+        canvasUrl,
+        canvasApiKey
+      });
+
+      // Get all announcements using minimal parameters (the approach that works)
+      const allAnnouncements = await module.exports.getAnnouncements(allCourses, {
+        canvasUrl,
+        canvasApiKey
+      });
+
+      // Filter for this specific course
+      const courseAnnouncements = allAnnouncements.filter(
+        a => a.course_id === parseInt(courseId) || a.context_code === `course_${courseId}`
+      );
+
+      console.log(`Found ${courseAnnouncements.length} announcements for course ${courseId}`);
+
+      return courseAnnouncements;
+    } catch (error) {
+      console.error(`Error in getCourseAnnouncements for course ${courseId}:`, error.message);
+      throw error;
+    }
   },
 
   /**

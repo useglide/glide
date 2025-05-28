@@ -21,6 +21,7 @@ const detailedCourseController = {
       const timings = {
         courses: { start: 0, end: 0, duration: 0 },
         assignments: { start: 0, end: 0, duration: 0, byCourseDuration: {} },
+        announcements: { start: 0, end: 0, duration: 0 },
         processing: { start: 0, end: 0, duration: 0 }
       };
 
@@ -170,6 +171,54 @@ const detailedCourseController = {
       timings.assignments.end = Date.now();
       timings.assignments.duration = timings.assignments.end - timings.assignments.start;
 
+      // Fetch announcements for all courses using the same approach as individual course pages
+      timings.announcements.start = Date.now();
+      let announcements = [];
+      try {
+        console.log(`Fetching announcements for ${courses.length} courses using individual course endpoints`);
+
+        // Fetch announcements for each course individually using the working approach
+        const announcementPromises = courses.map(async (course) => {
+          try {
+            const courseAnnouncements = await canvasService.getCourseAnnouncements(course.id, {
+              ...credentials
+            });
+            return courseAnnouncements;
+          } catch (error) {
+            console.error(`Error fetching announcements for course ${course.id}:`, error.message);
+            return []; // Return empty array for this course if there's an error
+          }
+        });
+
+        // Wait for all announcement fetches to complete
+        const allCourseAnnouncements = await Promise.all(announcementPromises);
+
+        // Flatten the array of arrays into a single array
+        announcements = allCourseAnnouncements.flat();
+
+        // Sort announcements by posted date (newest first)
+        announcements.sort((a, b) => {
+          return new Date(b.posted_at) - new Date(a.posted_at);
+        });
+
+        console.log(`Found ${announcements.length} announcements across all courses`);
+
+        // Log a sample of announcements for debugging
+        if (announcements.length > 0) {
+          console.log('Sample announcements:', announcements.slice(0, 2).map(a => ({
+            id: a.id,
+            title: a.title,
+            context_name: a.context_name,
+            posted_at: a.posted_at
+          })));
+        }
+      } catch (announcementError) {
+        console.error('Error fetching announcements:', announcementError.message);
+        // Continue with empty announcements array if there's an error
+      }
+      timings.announcements.end = Date.now();
+      timings.announcements.duration = timings.announcements.end - timings.announcements.start;
+
       // Process the results
       timings.processing.start = Date.now();
 
@@ -202,6 +251,7 @@ const detailedCourseController = {
         courses: processedCourses,
         courseAssignments: courseAssignmentData,
         assignments: allAssignments,
+        announcements: announcements,
         timing: {
           totalTimeMs,
           totalTimeSec: (totalTimeMs / 1000).toFixed(2),
@@ -215,6 +265,7 @@ const detailedCourseController = {
         status: 'error',
         courses: [],
         assignments: [],
+        announcements: [],
         timing: {
           totalTimeMs: 0,
           totalTimeSec: "0.00",

@@ -37,8 +37,8 @@ export function YourProgress({
   previousGPA = 3.48,
   completedCredits,
   requiredCredits = 120,
-  upcomingDeadlines = 5,
-  dueThisWeek = 3,
+  upcomingDeadlines = 0,
+  dueThisWeek = 0,
   courses = []
 }: YourProgressProps) {
   // Calculate GPA based on courses with grades

@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useState, use } from 'react';
+import React, { useEffect, useState, use, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { getDetailedCourseData, getAssignmentDetails } from '@/services/api';
+import { getDetailedCourseData, getAssignmentDetails, getCourseAnnouncements, getFavoriteCourses } from '@/services/api';
 import { Header } from '@/components/Header';
 import { ChevronLeft, RefreshCw, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import Link from 'next/link';
@@ -84,6 +84,129 @@ interface AssignmentResponse {
   assignment: Assignment;
 }
 
+interface CourseAnnouncementsResponse {
+  courseId: number;
+  announcements: Announcement[];
+  count: number;
+}
+
+interface FavoriteCourse {
+  id: number;
+  color?: string;
+  displayName?: string;
+}
+
+// Skeleton Loading Component that matches the actual layout
+function CourseDetailsSkeleton() {
+  return (
+    <>
+      {/* Course Header Skeleton - matches the actual colored header */}
+      <div className="rounded-lg p-6 mb-6 bg-gray-300 animate-pulse">
+        <div className="flex justify-between items-start">
+          <div>
+            {/* Course title skeleton */}
+            <div className="h-9 bg-gray-400 rounded-md w-80 mb-2"></div>
+            {/* Course code skeleton */}
+            <div className="h-5 bg-gray-400 rounded-md w-32 mb-1"></div>
+            {/* Instructor skeleton */}
+            <div className="h-4 bg-gray-400 rounded-md w-48"></div>
+          </div>
+          <div className="flex flex-col items-end">
+            {/* Refresh button skeleton */}
+            <div className="h-8 bg-gray-400 rounded-md w-20 mb-4"></div>
+            {/* Grade skeleton */}
+            <div className="text-right">
+              <div className="h-10 bg-gray-400 rounded-md w-16 mb-1"></div>
+              <div className="h-6 bg-gray-400 rounded-md w-8"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Course Content Skeleton - matches the white-grey container */}
+      <div className="bg-[var(--white-grey)] rounded-lg shadow-lg p-6">
+        {/* Assignments Section Skeleton */}
+        <div className="mb-6">
+          {/* Section header with title and show all button */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="h-8 bg-gray-300 rounded-md w-32 animate-pulse"></div>
+            <div className="h-8 bg-gray-300 rounded-md w-24 animate-pulse"></div>
+          </div>
+
+          {/* Assignments Table Skeleton - matches actual table structure */}
+          <div className="overflow-x-auto">
+            <table className="w-full bg-white rounded-lg">
+              {/* Table Header - matches actual header */}
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="px-6 py-4 text-left">
+                    <div className="h-4 bg-gray-300 rounded w-20 animate-pulse"></div>
+                  </th>
+                  <th className="px-6 py-4 text-left">
+                    <div className="h-4 bg-gray-300 rounded w-16 animate-pulse"></div>
+                  </th>
+                  <th className="px-6 py-4 text-left">
+                    <div className="h-4 bg-gray-300 rounded w-12 animate-pulse"></div>
+                  </th>
+                  <th className="px-6 py-4 text-left">
+                    <div className="h-4 bg-gray-300 rounded w-12 animate-pulse"></div>
+                  </th>
+                </tr>
+              </thead>
+
+              {/* Table Body - matches actual row structure */}
+              <tbody>
+                {[...Array(5)].map((_, index) => (
+                  <tr key={index} className="border-b border-gray-100">
+                    <td className="px-6 py-5">
+                      <div className="h-4 bg-gray-200 rounded w-48 animate-pulse"></div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="h-4 bg-gray-200 rounded w-16 animate-pulse"></div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Announcements Section Skeleton */}
+        <div className="mt-8">
+          {/* Section title */}
+          <div className="h-8 bg-gray-300 rounded-md w-40 mb-4 animate-pulse"></div>
+
+          {/* Announcements list - matches actual announcement structure */}
+          <div className="space-y-4">
+            {[...Array(3)].map((_, index) => (
+              <div key={index} className={`py-4 ${index !== 2 ? 'border-b border-gray-200' : ''}`}>
+                <div className="flex justify-between items-start mb-2">
+                  {/* Announcement title */}
+                  <div className="h-6 bg-gray-200 rounded-md w-3/4 animate-pulse"></div>
+                  {/* Date */}
+                  <div className="h-4 bg-gray-200 rounded-md w-20 animate-pulse"></div>
+                </div>
+                {/* Announcement content */}
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 rounded-md w-full animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 rounded-md w-5/6 animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 rounded-md w-4/6 animate-pulse"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function CourseDetailsPage({ params }: { params: Promise<{ courseId: string }> }) {
   // Use the 'use' hook to unwrap the params Promise
   const resolvedParams = use(params);
@@ -92,6 +215,7 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [assignmentsExpanded, setAssignmentsExpanded] = useState(false);
+  const [autoRefreshing, setAutoRefreshing] = useState(false);
   const [courseData, setCourseData] = useState<{
     loading: boolean;
     gradesLoading: boolean;
@@ -111,120 +235,72 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
   const { user, logout } = useAuth() as AuthContextType;
   const router = useRouter();
 
-  // Fetch course data
-  useEffect(() => {
-    if (!user) {
-      router.push('/login');
-      return;
+  // Helper function to merge course settings with course data
+  const mergeCourseSettings = useCallback(async (course: Course | null) => {
+    if (!course) return course;
+
+    try {
+      const favorites = await getFavoriteCourses() as FavoriteCourse[];
+      const favoriteData = favorites?.find((fav: FavoriteCourse) => fav.id === course.id);
+
+      return {
+        ...course,
+        customColor: favoriteData?.color || course.customColor,
+        displayName: favoriteData?.displayName || course.displayName
+      };
+    } catch (error) {
+      console.error('Error fetching course settings:', error);
+      return course;
     }
+  }, []);
 
-    const fetchCourseData = async () => {
-      try {
-        setCourseData(prev => ({ ...prev, loading: true, error: null }));
-
-        // Fetch all course data and filter for this specific course
-        const data = await getDetailedCourseData({ cache: 'force-cache' }) as CourseDataResponse;
-
-        // Find the specific course
-        const course = data.courses?.find(c => c.id === courseId) || null;
-
-        // Filter assignments for this course
-        const courseAssignments = data.courseAssignments?.[courseId] || [];
-
-        // Filter announcements for this course (if available)
-        const courseAnnouncements = data.announcements?.filter(
-          a => a.course_id === courseId || a.context_code === `course_${courseId}`
-        ) || [];
-
-        // Set initial data
-        setCourseData({
-          loading: false,
-          gradesLoading: false,
-          error: null,
-          course,
-          assignments: courseAssignments,
-          announcements: courseAnnouncements
-        });
-
-        // Fetch detailed assignment data for each assignment
-        if (courseAssignments.length > 0) {
-          try {
-            // Set grades loading state to true
-            setCourseData(prev => ({
-              ...prev,
-              gradesLoading: true
-            }));
-
-            // Create an array of promises for fetching assignment details
-            const assignmentPromises = courseAssignments.map(async (assignment) => {
-              try {
-                const detailedData = await getAssignmentDetails(courseId, assignment.id) as AssignmentResponse;
-                return detailedData.assignment;
-              } catch (error) {
-                console.error(`Error fetching details for assignment ${assignment.id}:`, error);
-                return assignment; // Return original assignment if fetch fails
-              }
-            });
-
-            // Wait for all promises to resolve
-            const detailedAssignments = await Promise.all(assignmentPromises);
-
-            // Update the course data with detailed assignments and set gradesLoading to false
-            setCourseData(prev => ({
-              ...prev,
-              assignments: detailedAssignments,
-              gradesLoading: false
-            }));
-          } catch (detailsError) {
-            console.error('Error fetching detailed assignment data:', detailsError);
-            // Set gradesLoading to false even on error
-            setCourseData(prev => ({
-              ...prev,
-              gradesLoading: false
-            }));
-          }
-        }
-      } catch (err: unknown) {
-        console.error('Failed to fetch course data:', err);
-        setCourseData(prev => ({
-          ...prev,
-          loading: false,
-          error: err instanceof Error ? err.message : 'Failed to fetch course data'
-        }));
-      }
-    };
-
-    fetchCourseData();
-  }, [user, router, courseId]);
-
-  const handleRefresh = async () => {
+  // Define handleRefresh with useCallback to avoid dependency issues
+  const handleRefresh = useCallback(async () => {
     try {
       setRefreshing(true);
       setError('');
 
       // Fetch fresh data
-      const data = await getDetailedCourseData({ bypassCache: true }) as CourseDataResponse;
+      const data = await getDetailedCourseData() as CourseDataResponse;
 
       // Find the specific course
-      const course = data.courses?.find(c => c.id === courseId) || null;
+      let course = data.courses?.find(c => c.id === courseId) || null;
+
+      // Merge course settings (display name, color) from favorites
+      course = await mergeCourseSettings(course);
 
       // Filter assignments for this course
       const courseAssignments = data.courseAssignments?.[courseId] || [];
 
-      // Filter announcements for this course (if available)
-      const courseAnnouncements = data.announcements?.filter(
-        a => a.course_id === courseId || a.context_code === `course_${courseId}`
-      ) || [];
-
-      // Set initial data
+      // Set initial data (without announcements for now)
       setCourseData({
         loading: false,
         gradesLoading: false,
         error: null,
         course,
         assignments: courseAssignments,
-        announcements: courseAnnouncements
+        announcements: [] // Will be populated by dedicated endpoint
       });
+
+      // Fetch announcements using the new dedicated endpoint (refresh)
+      try {
+        console.log('=== REFRESHING COURSE ANNOUNCEMENTS ===');
+        const announcementsData = await getCourseAnnouncements(courseId) as CourseAnnouncementsResponse;
+        console.log('Refresh announcements response:', announcementsData);
+
+        // Update announcements with the new data
+        setCourseData(prev => ({
+          ...prev,
+          announcements: announcementsData.announcements || []
+        }));
+      } catch (announcementError) {
+        console.error('Error refreshing course announcements:', announcementError);
+        // Set empty announcements on error
+        setCourseData(prev => ({
+          ...prev,
+          announcements: []
+        }));
+      }
 
       // Fetch detailed assignment data for each assignment
       if (courseAssignments.length > 0) {
@@ -238,7 +314,7 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
           // Create an array of promises for fetching assignment details
           const assignmentPromises = courseAssignments.map(async (assignment) => {
             try {
-              const detailedData = await getAssignmentDetails(courseId, assignment.id, { bypassCache: true }) as AssignmentResponse;
+              const detailedData = await getAssignmentDetails(courseId, assignment.id) as AssignmentResponse;
               return detailedData.assignment;
             } catch (error) {
               console.error(`Error fetching details for assignment ${assignment.id}:`, error);
@@ -282,8 +358,139 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
       setError('Failed to refresh course data: ' + errorMessage);
     } finally {
       setRefreshing(false);
+      setAutoRefreshing(false);
     }
-  };
+  }, [courseId, mergeCourseSettings]);
+
+  // Fetch course data
+  useEffect(() => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    const fetchCourseData = async () => {
+      try {
+        setCourseData(prev => ({ ...prev, loading: true, error: null }));
+
+        // Fetch course data
+        const data = await getDetailedCourseData() as CourseDataResponse;
+
+        // Find the specific course
+        let course = data.courses?.find(c => c.id === courseId) || null;
+
+        // Merge course settings (display name, color) from favorites
+        course = await mergeCourseSettings(course);
+
+        // Filter assignments for this course
+        const courseAssignments = data.courseAssignments?.[courseId] || [];
+
+        // Set initial data (without announcements for now)
+        setCourseData({
+          loading: false,
+          gradesLoading: false,
+          error: null,
+          course,
+          assignments: courseAssignments,
+          announcements: [] // Will be populated by dedicated endpoint
+        });
+
+        // Always trigger a refresh when clicking on a course to get fresh data
+        console.log('Auto-refreshing assignments when clicking on course');
+        setAutoRefreshing(true);
+        setTimeout(() => {
+          handleRefresh();
+        }, 100); // Small delay to let initial load complete
+
+        // Fetch announcements using the new dedicated endpoint
+        try {
+          console.log('=== FETCHING COURSE ANNOUNCEMENTS ===');
+          console.log('Course ID:', courseId);
+          const announcementsData = await getCourseAnnouncements(courseId) as CourseAnnouncementsResponse;
+          console.log('Announcements endpoint response:', announcementsData);
+          console.log('Found announcements:', announcementsData.announcements);
+          console.log('Announcements count:', announcementsData.count);
+
+          // Log each announcement with its properties
+          announcementsData.announcements?.forEach((announcement, index) => {
+            console.log(`Announcement ${index + 1}:`, {
+              id: announcement.id,
+              title: announcement.title,
+              course_id: announcement.course_id,
+              context_code: announcement.context_code,
+              context_name: announcement.context_name,
+              posted_at: announcement.posted_at,
+              message_preview: announcement.message?.substring(0, 100) + '...',
+              html_preview: announcement.html?.substring(0, 100) + '...'
+            });
+          });
+          console.log('=== END ANNOUNCEMENTS FETCH ===');
+
+          // Update announcements with the new data
+          setCourseData(prev => ({
+            ...prev,
+            announcements: announcementsData.announcements || []
+          }));
+        } catch (announcementError) {
+          console.error('Error fetching course announcements:', announcementError);
+          // Set empty announcements on error
+          setCourseData(prev => ({
+            ...prev,
+            announcements: []
+          }));
+        }
+
+        // Fetch detailed assignment data for each assignment
+        if (courseAssignments.length > 0) {
+          try {
+            // Set grades loading state to true
+            setCourseData(prev => ({
+              ...prev,
+              gradesLoading: true
+            }));
+
+            // Create an array of promises for fetching assignment details
+            const assignmentPromises = courseAssignments.map(async (assignment) => {
+              try {
+                // Fetch assignment details
+                const detailedData = await getAssignmentDetails(courseId, assignment.id) as AssignmentResponse;
+                return detailedData.assignment;
+              } catch (error) {
+                console.error(`Error fetching details for assignment ${assignment.id}:`, error);
+                return assignment; // Return original assignment if fetch fails
+              }
+            });
+
+            // Wait for all promises to resolve
+            const detailedAssignments = await Promise.all(assignmentPromises);
+
+            // Update the course data with detailed assignments and set gradesLoading to false
+            setCourseData(prev => ({
+              ...prev,
+              assignments: detailedAssignments,
+              gradesLoading: false
+            }));
+          } catch (detailsError) {
+            console.error('Error fetching detailed assignment data:', detailsError);
+            // Set gradesLoading to false even on error
+            setCourseData(prev => ({
+              ...prev,
+              gradesLoading: false
+            }));
+          }
+        }
+      } catch (err: unknown) {
+        console.error('Failed to fetch course data:', err);
+        setCourseData(prev => ({
+          ...prev,
+          loading: false,
+          error: err instanceof Error ? err.message : 'Failed to fetch course data'
+        }));
+      }
+    };
+
+    fetchCourseData();
+  }, [user, router, courseId, mergeCourseSettings, handleRefresh]);
 
   if (!user) {
     return null; // Will redirect in useEffect
@@ -329,10 +536,8 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
           </Link>
         </div>
 
-        {courseData.loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[var(--glide-blue)]"></div>
-          </div>
+        {courseData.loading || refreshing || autoRefreshing ? (
+          <CourseDetailsSkeleton />
         ) : courseData.course ? (
           <>
             {/* Course Header */}
@@ -412,8 +617,8 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
                         </tr>
                       </thead>
                       <tbody>
-                        {(courseData.assignments.length > 5 && !assignmentsExpanded 
-                          ? courseData.assignments.slice(0, 5) 
+                        {(courseData.assignments.length > 5 && !assignmentsExpanded
+                          ? courseData.assignments.slice(0, 5)
                           : courseData.assignments
                         ).map(assignment => {
                           // Format due date
@@ -516,11 +721,14 @@ export default function CourseDetailsPage({ params }: { params: Promise<{ course
                           </div>
                           {announcement.html ? (
                             <div
-                              className="text-[var(--secondary-color)]"
+                              className="text-[var(--secondary-color)] announcement-content"
                               dangerouslySetInnerHTML={{ __html: announcement.html }}
                             />
                           ) : announcement.message ? (
-                            <p className="text-[var(--secondary-color)]">{announcement.message}</p>
+                            <div
+                              className="text-[var(--secondary-color)] announcement-content"
+                              dangerouslySetInnerHTML={{ __html: announcement.message }}
+                            />
                           ) : null}
                         </div>
                       );
