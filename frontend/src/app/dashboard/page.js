@@ -370,8 +370,14 @@ export default function Dashboard() {
       const favorites = await getFavoriteCourses();
       if (favorites && Array.isArray(favorites)) {
         setFavoriteCoursesData(favorites);
+
+        // Get removed courses to filter them out
+        const removedCourseIds = await getRemovedCourses();
         const favoriteIds = favorites.map(course => course.id);
-        setFavoriteCourses(favoriteIds);
+
+        // Filter out removed courses before updating state
+        const filteredFavoriteIds = favoriteIds.filter(id => !removedCourseIds.includes(id));
+        setFavoriteCourses(filteredFavoriteIds);
       }
     } catch (error) {
       console.error('Error updating favorite course color:', error);
@@ -387,8 +393,14 @@ export default function Dashboard() {
       const favorites = await getFavoriteCourses();
       if (favorites && Array.isArray(favorites)) {
         setFavoriteCoursesData(favorites);
+
+        // Get removed courses to filter them out
+        const removedCourseIds = await getRemovedCourses();
         const favoriteIds = favorites.map(course => course.id);
-        setFavoriteCourses(favoriteIds);
+
+        // Filter out removed courses before updating state
+        const filteredFavoriteIds = favoriteIds.filter(id => !removedCourseIds.includes(id));
+        setFavoriteCourses(filteredFavoriteIds);
       }
     } catch (error) {
       console.error('Error updating favorite course display name:', error);

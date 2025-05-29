@@ -19,6 +19,7 @@ interface Course {
   course_code: string;
   displayName?: string;
   customColor?: string;
+  defaultColorIndex?: number;
 }
 
 interface CourseSettingsModalProps {
@@ -44,9 +45,19 @@ export function CourseSettingsModal({
   useEffect(() => {
     if (open) {
       setDisplayName(course.displayName || course.name);
-      setCustomColor(course.customColor || '');
+
+      // Initialize color: use saved custom color or default based on course position
+      if (course.customColor) {
+        setCustomColor(course.customColor);
+      } else {
+        // Use the default color based on course index
+        const defaultColorIndex = course.defaultColorIndex || 0;
+        const defaultColorClass = predefinedColors[defaultColorIndex % predefinedColors.length];
+        const defaultHexColor = getHexColorValue(defaultColorClass);
+        setCustomColor(defaultHexColor);
+      }
     }
-  }, [open, course]);
+  }, [open, course, predefinedColors]);
 
   // Handle saving the settings
   const handleSave = () => {
@@ -54,10 +65,21 @@ export function CourseSettingsModal({
     onOpenChange(false);
   };
 
-  // Get the CSS variable value for a predefined color
-  const getColorValue = (colorClass: string) => {
+  // Convert CSS variable to hex value for color picker
+  const getHexColorValue = (colorClass: string): string => {
     const colorVar = colorClass.replace('bg-[var(--', '').replace(')]', '');
-    return `var(--${colorVar})`;
+
+    // Map CSS variables to their hex values
+    const cssVarToHexMap: Record<string, string> = {
+      'course-blue': '#E0EFFF',    // Light blue
+      'course-purple': '#EDE9FE',  // Light purple
+      'course-green': '#DCFCE7',   // Light green
+      'course-amber': '#FEF3C7',   // Light amber/yellow
+      'course-pink': '#FCE7F3',    // Light pink
+      'course-indigo': '#6366f1'   // Indigo (darker)
+    };
+
+    return cssVarToHexMap[colorVar] || '#E0EFFF'; // Default to light blue
   };
 
   // Function to get appropriate text color for a background color
@@ -149,18 +171,18 @@ export function CourseSettingsModal({
                 <input
                   id="customColor"
                   type="color"
-                  value={customColor || getColorValue(predefinedColors[0])}
+                  value={customColor || getHexColorValue(predefinedColors[0])}
                   onChange={(e) => setCustomColor(e.target.value)}
                   className="h-10 w-16 rounded-md border border-input cursor-pointer"
                 />
                 <div
                   className="px-3 py-1 rounded-md text-sm font-medium"
                   style={{
-                    backgroundColor: customColor || getColorValue(predefinedColors[0]),
-                    color: getColorForText(customColor || getColorValue(predefinedColors[0]))
+                    backgroundColor: customColor || getHexColorValue(predefinedColors[0]),
+                    color: getColorForText(customColor || getHexColorValue(predefinedColors[0]))
                   }}
                 >
-                  {customColor || getColorValue(predefinedColors[0])}
+                  {customColor || getHexColorValue(predefinedColors[0])}
                 </div>
               </div>
             </div>
@@ -174,15 +196,15 @@ export function CourseSettingsModal({
             <div className="col-span-3">
                 <div className="flex gap-3">
                   {predefinedColors.map((colorClass, index) => {
-                    const colorValue = getColorValue(colorClass);
-                    const isSelected = customColor === colorValue;
-                    const checkColor = getColorForText(colorValue) === 'white' ? 'text-white' : 'text-[var(--primary-color)]';
+                    const hexValue = getHexColorValue(colorClass);
+                    const isSelected = customColor === hexValue;
+                    const checkColor = getColorForText(hexValue) === 'white' ? 'text-white' : 'text-[var(--primary-color)]';
 
                     return (
                       <button
                         key={index}
                         type="button"
-                        onClick={() => setCustomColor(colorValue)}
+                        onClick={() => setCustomColor(hexValue)}
                         className={cn(
                           "relative w-10 h-10 rounded-full border transition-all cursor-pointer",
                           colorClass,

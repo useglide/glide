@@ -523,3 +523,168 @@ export const getRemovedCourses = async () => {
     throw error;
   }
 };
+
+/**
+ * Submit an assignment
+ * @param {number} courseId - Course ID
+ * @param {number} assignmentId - Assignment ID
+ * @param {Object} submissionData - Submission data
+ * @returns {Promise<Object>} Submission result
+ */
+export const submitAssignment = async (courseId, assignmentId, submissionData) => {
+  try {
+    const token = await getIdToken();
+    const user = auth.currentUser;
+
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const url = joinUrl(API_URL, `courses/${courseId}/assignments/${assignmentId}/submissions`);
+    console.log(`Submitting assignment for user: ${user.uid}, course: ${courseId}, assignment: ${assignmentId}`);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(submissionData),
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || errorData.detail || `API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Assignment submission failed:', error);
+    throw error;
+  }
+};
+
+/**
+ * Upload a file for submission
+ * @param {number} courseId - Course ID
+ * @param {number} assignmentId - Assignment ID
+ * @param {number} userId - User ID
+ * @param {File} file - File object from input
+ * @returns {Promise<Object>} Upload result
+ */
+export const uploadSubmissionFile = async (courseId, assignmentId, userId, file) => {
+  try {
+    const token = await getIdToken();
+    const user = auth.currentUser;
+
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const url = joinUrl(API_URL, `courses/${courseId}/assignments/${assignmentId}/submissions/${userId}/files`);
+    console.log(`Uploading file for submission: ${user.uid}, course: ${courseId}, assignment: ${assignmentId}`);
+
+    // Create FormData for file upload
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+        // Don't set Content-Type header - let browser set it with boundary for FormData
+      },
+      body: formData,
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || errorData.detail || `API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('File upload failed:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get detailed submission information including attachments
+ * @param {number} courseId - Course ID
+ * @param {number} assignmentId - Assignment ID
+ * @param {number} userId - User ID (defaults to 'self')
+ * @returns {Promise<Object>} Detailed submission information
+ */
+export const getSubmissionDetails = async (courseId, assignmentId, userId = 'self') => {
+  try {
+    const token = await getIdToken();
+    const user = auth.currentUser;
+
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const url = joinUrl(API_URL, `courses/${courseId}/assignments/${assignmentId}/submissions/${userId}/details`);
+    console.log(`Fetching submission details for user: ${user.uid}, course: ${courseId}, assignment: ${assignmentId}, userId: ${userId}`);
+
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || errorData.detail || `API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to fetch submission details:', error);
+    throw error;
+  }
+};
+
+/**
+ * Download a submitted file
+ * @param {number} courseId - Course ID
+ * @param {number} assignmentId - Assignment ID
+ * @param {number} userId - User ID (defaults to 'self')
+ * @param {number} fileId - File ID
+ * @returns {Promise<Blob>} File blob for download
+ */
+export const downloadSubmissionFile = async (courseId, assignmentId, userId = 'self', fileId) => {
+  try {
+    const token = await getIdToken();
+    const user = auth.currentUser;
+
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const url = joinUrl(API_URL, `courses/${courseId}/assignments/${assignmentId}/submissions/${userId}/files/${fileId}/download`);
+    console.log(`Downloading submission file for user: ${user.uid}, course: ${courseId}, assignment: ${assignmentId}, userId: ${userId}, fileId: ${fileId}`);
+
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || errorData.detail || `API error: ${response.status}`);
+    }
+
+    return response.blob();
+  } catch (error) {
+    console.error('Failed to download submission file:', error);
+    throw error;
+  }
+};

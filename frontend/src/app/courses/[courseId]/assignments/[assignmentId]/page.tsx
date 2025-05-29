@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { getAssignmentDetails } from '@/services/api';
 import { Header } from '@/components/Header';
+import { SubmissionForm } from '@/components/SubmissionForm';
+import { SubmissionDetails } from '@/components/SubmissionDetails';
 import { Calendar, FileText, CheckCircle, XCircle, AlertCircle, Loader2, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 
@@ -56,6 +58,7 @@ export default function AssignmentDetailsPage({ params }: { params: Promise<{ co
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [assignment, setAssignment] = useState<Assignment | null>(null);
+  const [submissionMessage, setSubmissionMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   const { user, logout } = useAuth() as AuthContextType;
   const router = useRouter();
@@ -84,6 +87,38 @@ export default function AssignmentDetailsPage({ params }: { params: Promise<{ co
 
     fetchAssignmentDetails();
   }, [user, router, courseId, assignmentId]);
+
+  // Refetch assignment details function
+  const refetchAssignmentDetails = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await getAssignmentDetails(courseId, assignmentId) as AssignmentResponse;
+      setAssignment(response.assignment);
+    } catch (err: unknown) {
+      console.error('Failed to fetch assignment details:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch assignment details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle submission success
+  const handleSubmissionSuccess = () => {
+    setSubmissionMessage({ type: 'success', text: 'Assignment submitted successfully!' });
+    // Refresh assignment details to show updated submission status
+    refetchAssignmentDetails();
+    // Clear message after 5 seconds
+    setTimeout(() => setSubmissionMessage(null), 5000);
+  };
+
+  // Handle submission error
+  const handleSubmissionError = (errorMessage: string) => {
+    setSubmissionMessage({ type: 'error', text: errorMessage });
+    // Clear message after 5 seconds
+    setTimeout(() => setSubmissionMessage(null), 5000);
+  };
 
   // Format due date
   const formatDate = (dateString: string | null) => {
@@ -201,11 +236,23 @@ export default function AssignmentDetailsPage({ params }: { params: Promise<{ co
             </Link>
           </div>
         ) : assignment ? (
-          <div className="bg-[var(--white-grey)] p-10 rounded-lg shadow-lg">
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-[var(--primary-color)] mb-2">{assignment.name}</h1>
-              <p className="text-[var(--secondary-color)]">{assignment.course_name || assignment.course_code}</p>
-            </div>
+          <div className="space-y-6">
+            {/* Submission Message */}
+            {submissionMessage && (
+              <div className={`p-4 rounded-lg ${
+                submissionMessage.type === 'success'
+                  ? 'bg-green-50 border border-green-200 text-green-800'
+                  : 'bg-red-50 border border-red-200 text-red-800'
+              }`}>
+                {submissionMessage.text}
+              </div>
+            )}
+
+            <div className="bg-[var(--white-grey)] p-10 rounded-lg shadow-lg">
+              <div className="mb-6">
+                <h1 className="text-2xl font-bold text-[var(--primary-color)] mb-2">{assignment.name}</h1>
+                <p className="text-[var(--secondary-color)]">{assignment.course_name || assignment.course_code}</p>
+              </div>
 
             {/* Status badge */}
             <div className="mb-6">
@@ -285,6 +332,17 @@ export default function AssignmentDetailsPage({ params }: { params: Promise<{ co
               )}
             </div>
 
+            {/* Detailed Submission Information */}
+            {assignment.grade_info?.submitted_at && (
+              <div className="mb-6">
+                <SubmissionDetails
+                  courseId={courseId}
+                  assignmentId={assignmentId}
+                  onError={(error) => setSubmissionMessage({ type: 'error', text: error })}
+                />
+              </div>
+            )}
+
             {/* Action buttons */}
             <div className="flex justify-end mt-8">
               <a
@@ -297,6 +355,18 @@ export default function AssignmentDetailsPage({ params }: { params: Promise<{ co
               </a>
             </div>
           </div>
+
+          {/* Submission Form */}
+          {assignment.submission_types && assignment.submission_types.length > 0 && !assignment.grade_info?.submitted_at && (
+            <SubmissionForm
+              courseId={courseId}
+              assignmentId={assignmentId}
+              submissionTypes={assignment.submission_types}
+              onSubmissionSuccess={handleSubmissionSuccess}
+              onSubmissionError={handleSubmissionError}
+            />
+          )}
+        </div>
         ) : (
           <div className="bg-[var(--white-grey)] p-10 rounded-lg shadow-lg">
             <p className="text-[var(--secondary-color)]">Assignment not found.</p>

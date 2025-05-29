@@ -23,6 +23,7 @@ interface Course {
   grade?: number | null;
   displayName?: string;
   customColor?: string;
+  defaultColorIndex?: number;
 }
 
 interface CurrentCoursesProps {
@@ -114,7 +115,13 @@ export function CurrentCourses({
 
   // Handle opening the settings modal
   const handleOpenSettings = (course: Course) => {
-    setSelectedCourse(course);
+    // Find the course index to determine default color
+    const courseIndex = courses.findIndex(c => c.id === course.id);
+    const courseWithIndex = {
+      ...course,
+      defaultColorIndex: courseIndex >= 0 ? courseIndex : 0
+    };
+    setSelectedCourse(courseWithIndex);
     setIsSettingsModalOpen(true);
   };
 
@@ -124,7 +131,7 @@ export function CurrentCourses({
     if (onUpdateColor) {
       onUpdateColor(courseId, customColor);
     }
-    
+
     // Update the display name via the parent component's callback
     if (onUpdateDisplayName) {
       onUpdateDisplayName(courseId, displayName);
@@ -271,16 +278,18 @@ function CourseCard({
     ? `${Math.round(course.grade)}%`
     : null;
 
-  // Get the primary teacher's name if available
-  const primaryTeacher = course.teachers && course.teachers.length > 0
-    ? course.teachers[0].display_name
-    : null;
+
 
   // Use custom color if available, otherwise use the default color
   const cardColor = course.customColor || colorClass;
 
-  // Use custom display name if available, otherwise use the default name
-  const displayName = course.displayName || course.name;
+  // Determine what to show in the top-left corner and center title
+  // Only treat as "custom" if displayName exists, is not empty, AND is different from the original name
+  const hasCustomDisplayName = course.displayName &&
+                               course.displayName.trim() !== '' &&
+                               course.displayName.trim() !== course.name.trim();
+  const topLeftText = hasCustomDisplayName ? course.name : ''; // Show original name only if custom name exists and differs
+  const centerTitle = hasCustomDisplayName ? course.displayName : course.name; // Show custom name or original name
 
   // Determine if the card color is light or dark
   let bgColor: string;
@@ -352,51 +361,48 @@ function CourseCard({
 
   return (
     <div
-      className={`${cardClassName} cursor-pointer`}
+      className={`${cardClassName} cursor-pointer relative`}
       style={cardColor.startsWith('bg-') ? {} : { backgroundColor: cardColor }}
       onClick={() => window.location.href = `/courses/${course.id}`}
     >
-      {/* Course code and settings icon */}
-      <div className="flex justify-between items-start">
-        <span
-          className={`text-xs font-semibold ${secondaryTextColor}`}
-          style={{ color: textColorStyle }}
-        >
-          {course.course_code}
-        </span>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation(); // Prevent card click from triggering
-            onOpenSettings(course);
-          }}
-          className={`w-5 h-5 flex items-center justify-center ${secondaryTextColor} hover:${textColor} transition-colors cursor-pointer`}
-          style={{ color: textColorStyle }}
-          aria-label="Course settings"
-        >
-          <Settings size={16} />
-        </button>
-      </div>
-
-      {/* Course name */}
-      <h3
-        className={`text-xl font-bold ${textColor} mt-2 mb-1 break-words`}
+      {/* Settings gear - always in top right */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation(); // Prevent card click from triggering
+          onOpenSettings(course);
+        }}
+        className={`absolute top-4 right-4 w-5 h-5 flex items-center justify-center ${secondaryTextColor} hover:${textColor} transition-colors cursor-pointer`}
         style={{ color: textColorStyle }}
+        aria-label="Course settings"
       >
-        {displayName}
-      </h3>
+        <Settings size={16} />
+      </button>
 
-      {/* Professor name */}
-      {primaryTeacher && (
-        <p
-          className={`text-sm ${secondaryTextColor} mb-auto`}
-          style={{ color: textColorStyle }}
-        >
-          {primaryTeacher}
-        </p>
+      {/* Top-left corner text (original course name when custom display name exists) */}
+      {topLeftText && (
+        <div className="absolute top-4 left-4">
+          <span
+            className={`text-xs font-semibold ${secondaryTextColor}`}
+            style={{ color: textColorStyle }}
+          >
+            {topLeftText}
+          </span>
+        </div>
       )}
 
-      <div className="flex justify-between items-center mt-auto">
+      {/* Centered course name */}
+      <div className="flex items-center justify-center h-full">
+        <h3
+          className={`text-xl font-bold ${textColor} text-center break-words px-8`}
+          style={{ color: textColorStyle }}
+        >
+          {centerTitle}
+        </h3>
+      </div>
+
+      {/* Bottom section with details and grade */}
+      <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center">
         {/* View details link */}
         <div
           className={`flex items-center text-sm font-medium ${textColor}`}
@@ -410,10 +416,8 @@ function CourseCard({
         {gradePercentage && (
           <div
             className="px-3 py-1 rounded-md text-sm font-bold"
-            // regular style white background, black text
             style={{
               backgroundColor: 'var(--white-grey)',
-              // if color is light use dark text
               color: textColorStyle === 'white' ? 'black' : textColorStyle,
             }}
           >
