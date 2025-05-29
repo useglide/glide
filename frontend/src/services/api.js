@@ -143,6 +143,25 @@ export const ensureUserHasCourses = async () => {
 };
 
 /**
+ * Get Google OAuth token from Firebase user
+ * @returns {Promise<string>} Google OAuth access token
+ */
+export const getGoogleOAuthToken = async () => {
+  try {
+    // Import the function dynamically to avoid circular dependencies
+    const { useAuth } = await import('../context/AuthContext');
+    const { getGoogleToken } = useAuth();
+
+    // Get the token from the auth context
+    const tokenData = await getGoogleToken();
+    return tokenData.accessToken;
+  } catch (error) {
+    console.error('Failed to get Google OAuth token:', error);
+    throw error;
+  }
+};
+
+/**
  * Create folders for user's enrolled classes
  * @param {string} userId - User ID
  * @param {Array<string>} classNames - List of class names to create folders for
@@ -158,15 +177,41 @@ export const createClassFolders = async (userId, classNames, parentFolderId = nu
   console.log('Using API URL:', apiUrl);
 
   try {
+    // Get Firebase ID token for authentication
     const token = await getIdToken();
     console.log('Got ID token for authentication');
+
+    // Try to get Google OAuth token if available
+    let googleToken = null;
+    let isGoogleUser = false;
+
+    try {
+      // Check if user is signed in with Google
+      const user = auth.currentUser;
+      if (user) {
+        isGoogleUser = user.providerData.some(
+          provider => provider.providerId === 'google.com'
+        );
+      }
+
+      if (isGoogleUser) {
+        // Get Firebase ID token for Google-authenticated user
+        googleToken = await user.getIdToken(true);
+        console.log('User is authenticated with Google, using Firebase ID token');
+      }
+    } catch (tokenError) {
+      console.log('Error checking Google authentication:', tokenError.message);
+      // Continue without Google token - the backend will handle this case
+    }
 
     const requestBody = {
       user_id: userId,
       class_names: classNames,
-      parent_folder_id: parentFolderId
+      parent_folder_id: parentFolderId,
+      google_token: googleToken, // Include Google token if available
+      is_google_user: isGoogleUser // Indicate if user is authenticated with Google
     };
-    console.log('Request body:', requestBody);
+    console.log('Request body prepared (token details omitted)');
 
     console.log(`Sending POST request to ${apiUrl}/folders/create-class-folders`);
     const response = await fetch(`${apiUrl}/folders/create-class-folders`, {
@@ -192,12 +237,28 @@ export const createClassFolders = async (userId, classNames, parentFolderId = nu
             typeof errorData.detail === 'object' &&
             errorData.detail.error_type === 'google_auth_required') {
 
-          // Return a special error object with auth_url that can be handled by the caller
-          throw {
-            isGoogleAuthError: true,
-            message: errorData.detail.message || 'Google authentication required',
-            auth_url: errorData.detail.auth_url
-          };
+          // If we have an auth_url, open it in a new window
+          if (errorData.detail.auth_url) {
+            console.log('Google authentication required, opening auth URL');
+
+            // Open the auth URL in a new window
+            const authWindow = window.open(errorData.detail.auth_url, '_blank', 'width=800,height=600');
+
+            // Throw a special error that can be handled by the caller
+            throw {
+              isGoogleAuthError: true,
+              message: errorData.detail.message || 'Google authentication required',
+              authUrl: errorData.detail.auth_url,
+              authWindow: authWindow
+            };
+          } else {
+            // If no auth_url is provided, prompt the user to sign in with Google
+            throw {
+              isGoogleAuthError: true,
+              message: errorData.detail.message || 'Google authentication required',
+              requiresGoogleSignIn: true
+            };
+          }
         }
 
         errorDetail = errorData.detail || errorData.error || `HTTP error ${response.status}`;
@@ -461,6 +522,49 @@ export const updateFavoriteCourseColor = async (courseId, color) => {
     });
   } catch (error) {
     console.error('Failed to update favorite course color:', error);
+    throw error;
+  }
+};
+
+// ===== LECTURE NOTES API =====
+
+/**
+ * Get the lecture notes API URL
+ * @returns {string} The lecture notes API URL
+ */
+const getLectureNotesApiUrl = () => {
+  const GENOA_API_URL = process.env.NEXT_PUBLIC_GENOA_API_URL || 'http://localhost:8000/api';
+  return GENOA_API_URL.endsWith('/v1') ? GENOA_API_URL : `${GENOA_API_URL}/v1`;
+};
+
+/**
+ * Make an authenticated request to the lecture notes API
+ * @param {string} endpoint - The endpoint to call
+ * @param {Object} options - Fetch options
+ * @returns {Promise<Object>} The response data
+ */
+const fetchLectureNotesApi = async (endpoint, options = {}) => {
+  try {
+    const token = await getIdToken();
+    const baseUrl = getLectureNotesApiUrl();
+    const url = joinUrl(baseUrl, `lecture-notes/${endpoint}`);
+
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || errorData.error || `API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Lecture notes API request failed:', error);
     throw error;
   }
 };

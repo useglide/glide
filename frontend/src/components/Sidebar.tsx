@@ -8,6 +8,7 @@ import {
   BookOpen,
   Briefcase,
   CheckCircle,
+  Calendar,
   Settings
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -55,6 +56,11 @@ export function Sidebar() {
       href: '/assignments',
       icon: <Briefcase className="w-5 h-5" />,
       label: 'Assignments',
+    },
+    {
+      href: '/calendar',
+      icon: <Calendar className="w-5 h-5" />,
+      label: 'Calendar',
     },
     {
       href: '/todo',

@@ -47,6 +47,9 @@ export function GlobalCommandMenu() {
           <CommandItem onSelect={() => runCommand(() => router.push('/assignments'))}>
             Assignments
           </CommandItem>
+          <CommandItem onSelect={() => runCommand(() => router.push('/calendar'))}>
+            Calendar
+          </CommandItem>
           <CommandItem onSelect={() => runCommand(() => router.push('/todo'))}>
             To-Do
           </CommandItem>
