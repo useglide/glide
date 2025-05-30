@@ -18,6 +18,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:3002",
         "https://glide-v3.vercel.app",
         "https://glide-v3-git-main.vercel.app",
         "https://glide-v3-*.vercel.app",
