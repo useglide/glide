@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserIcon } from 'lucide-react';
+import { UserIcon, Sparkles } from 'lucide-react';
+import { ChatPanel } from './chat/ChatPanel';
 
 interface HeaderProps {
   title?: string;
@@ -11,6 +12,7 @@ interface HeaderProps {
 
 export function Header({ title = 'Dashboard', onLogout }: HeaderProps) {
   const router = useRouter();
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const triggerCommandMenu = () => {
     const event = new KeyboardEvent('keydown', {
@@ -21,18 +23,56 @@ export function Header({ title = 'Dashboard', onLogout }: HeaderProps) {
     document.dispatchEvent(event);
   };
 
+  const toggleChat = () => {
+    setIsChatOpen(!isChatOpen);
+  };
+
+  const closeChat = () => {
+    setIsChatOpen(false);
+  };
+
+  // Add keyboard shortcut for chat (Cmd+I or Ctrl+I)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Check for Command+I (Mac) or Ctrl+I (Windows)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
+        e.preventDefault(); // Prevent browser's default "Inspect" action
+        toggleChat();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isChatOpen]); // Re-run effect when isChatOpen changes to get the latest toggleChat function
+
   return (
     <header className="sticky top-0 z-20 bg-[var(--white-grey)] border-b border-[var(--nav-border)] w-full">
-      <div className="flex items-center justify-between h-16 px-6">
-        <div className="flex items-center space-x-4">
+      <div className="flex items-center h-16 px-6">
+        {/* Left Section - Title */}
+        <div className="flex items-center space-x-4 flex-1">
           <h1 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">{title}</h1>
         </div>
-        <div className="flex-1 mx-4">
+
+        {/* Center Section - Ask Genoa Button */}
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={toggleChat}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer shadow-sm"
+            aria-label="Ask Genoa AI Assistant"
+          >
+            <Sparkles className="h-4 w-4 text-purple-600" />
+            <span className="text-sm font-medium">Ask Genoa</span>
+          </button>
+        </div>
+
+        {/* Right Section - User Controls */}
+        <div className="flex items-center space-x-4 flex-1 justify-end">
           {/* Search Command Menu Trigger */}
           <button
             type="button"
             onClick={triggerCommandMenu}
-            className="w-full inline-flex items-center gap-1 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors px-3 py-2 rounded-md bg-[var(--white-grey)] cursor-pointer"
+            className="inline-flex items-center gap-1 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors px-3 py-2 rounded-md bg-[var(--white-grey)] cursor-pointer"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -42,8 +82,7 @@ export function Header({ title = 'Dashboard', onLogout }: HeaderProps) {
               <span className="text-xs">⌘</span>K
             </kbd>
           </button>
-        </div>
-        <div className="flex items-center space-x-4">
+
           {/* User Profile Button */}
           <button
             type="button"
@@ -65,6 +104,9 @@ export function Header({ title = 'Dashboard', onLogout }: HeaderProps) {
           )}
         </div>
       </div>
+
+      {/* Chat Panel */}
+      <ChatPanel isOpen={isChatOpen} onClose={closeChat} />
     </header>
   );
 }

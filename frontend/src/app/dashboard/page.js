@@ -6,7 +6,6 @@ import { useAuth } from '../../context/AuthContext';
 import {
   getTwoStageData,
   getDetailedCourseData,
-  createClassFolders,
   getFavoriteCourses,
   addFavoriteCourse,
   removeFavoriteCourse,
@@ -23,7 +22,6 @@ import { Header } from '../../components/Header';
 export default function Dashboard() {
   const [error, setError] = useState('');
   const [refreshingCache, setRefreshingCache] = useState(false);
-  const [creatingFolders, setCreatingFolders] = useState(false);
   const [twoStageData, setTwoStageData] = useState({
     loading: true,
     error: null,
@@ -71,7 +69,7 @@ export default function Dashboard() {
         if (response.ok) {
           const result = await response.json();
           if (result.success) {
-            setError('Google authentication successful! You can now create semester folders.');
+            setError('Google authentication successful!');
           } else {
             setError('Failed to authenticate with Google: ' + (result.message || 'Unknown error'));
           }
@@ -407,113 +405,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleCreateSemesterFolders = async () => {
-    if (creatingFolders || !user) {
-      console.log('Button click ignored:', creatingFolders ? 'Already creating folders' : 'No user logged in');
-      return;
-    }
 
-    console.log('Starting folder creation process');
-    setCreatingFolders(true);
-    setError('');
-
-    try {
-      // Log the detailed course data to check its structure
-      console.log('Detailed course data:', detailedCourseData.data);
-
-      // Check if courses exist
-      if (!detailedCourseData.data?.courses) {
-        console.error('No courses data available');
-        setError('No courses data available. Try refreshing the page.');
-        setCreatingFolders(false);
-        return;
-      }
-
-      // Get course names from the detailed course data
-      const allCourses = detailedCourseData.data.courses;
-      console.log('All courses:', allCourses);
-
-      // Check if courses have a status field
-      const hasStatusField = allCourses.some(course => course.status !== undefined);
-      console.log('Courses have status field:', hasStatusField);
-
-      // First try to get current courses if status field exists
-      let courseNames = [];
-      let currentCourses = [];
-
-      if (hasStatusField) {
-        currentCourses = allCourses.filter(course => course.status === 'current');
-        console.log('Current courses:', currentCourses);
-
-        if (currentCourses.length > 0) {
-          courseNames = currentCourses.map(course => course.name);
-        }
-      }
-
-      // If no current courses found, use favorite courses
-      if (courseNames.length === 0 && favoriteCourses.length > 0) {
-        console.log('No current courses found, using favorite courses');
-        const favoriteCourseObjects = allCourses.filter(course => favoriteCourses.includes(course.id));
-        courseNames = favoriteCourseObjects.map(course => course.name);
-      }
-
-      // If still no courses, use all courses as a fallback
-      if (courseNames.length === 0) {
-        console.log('No current or favorite courses found, using all courses');
-        courseNames = allCourses.map(course => course.name);
-      }
-
-      console.log('Course names for folder creation:', courseNames);
-
-      if (courseNames.length === 0) {
-        console.warn('No courses found to create folders for');
-        setError('No courses found to create folders for. Please try refreshing the page.');
-        setCreatingFolders(false);
-        return;
-      }
-
-      // Log user ID
-      console.log('User ID for folder creation:', user.uid);
-
-      // Call the API to create folders
-      console.log('Calling createClassFolders API with:', {
-        userId: user.uid,
-        classNames: courseNames
-      });
-
-      try {
-        const result = await createClassFolders(user.uid, courseNames);
-        console.log('API response:', result);
-
-        if (result.success) {
-          console.log('Folder creation successful');
-          setError(`Successfully created ${result.folder_count} folders for ${result.semester_name}!`);
-        } else {
-          console.error('Folder creation failed with result:', result);
-          setError('Failed to create semester folders.');
-        }
-      } catch (apiError) {
-        // Check if this is a Google authentication error
-        if (apiError.isGoogleAuthError && apiError.auth_url) {
-          console.log('Google authentication required. Opening auth in new window:', apiError.auth_url);
-          setError('Google authentication required. Opening in a new window...');
-
-          // Open Google authentication page in a new window
-          window.open(apiError.auth_url, '_blank', 'noopener,noreferrer');
-          return;
-        }
-
-        // Re-throw for the outer catch block to handle
-        throw apiError;
-      }
-    } catch (err) {
-      console.error('Failed to create semester folders:', err);
-      setError('Failed to create semester folders: ' + (err.message || 'Unknown error'));
-    } finally {
-      setCreatingFolders(false);
-      console.log('Folder creation process completed');
-    }
-  };
 
   const handleRefreshData = async () => {
     try {
@@ -608,6 +500,33 @@ export default function Dashboard() {
   // Calculate the upcoming deadlines from the current assignment data
   const upcomingDeadlinesData = calculateUpcomingDeadlines(detailedCourseData.data?.assignments || []);
 
+  // Calculate current courses for credit calculation (separate from favorites)
+  const getCurrentCourses = () => {
+    if (!detailedCourseData.data?.courses) return [];
+
+    // First try to find courses with explicit 'current' status
+    let currentCourses = detailedCourseData.data.courses.filter(
+      course => course.status === 'current'
+    );
+
+    // If no courses with 'current' status, try to determine current courses by end date
+    if (currentCourses.length === 0) {
+      const now = new Date();
+      currentCourses = detailedCourseData.data.courses.filter(course => {
+        // If no end_at, consider it current
+        if (!course.end_at) return true;
+
+        // If end date is in the future, consider it current
+        const endDate = new Date(course.end_at);
+        return endDate > now;
+      });
+    }
+
+    return currentCourses;
+  };
+
+  const currentCourses = getCurrentCourses();
+
   if (!user) {
     return null; // Will redirect in useEffect
   }
@@ -680,40 +599,13 @@ export default function Dashboard() {
         {/* Your Progress Section */}
         <YourProgress
           loading={detailedCourseData.loading}
-          previousGPA={3.75}
           requiredCredits={120}
           upcomingDeadlines={upcomingDeadlinesData.total}
           dueThisWeek={upcomingDeadlinesData.thisWeek}
-          courses={detailedCourseData.data?.courses || []}
+          courses={currentCourses}
         />
 
-        {/* Create Semester Folders Button */}
-        <div className="mt-8 flex justify-center">
-          <button
-            onClick={handleCreateSemesterFolders}
-            disabled={creatingFolders || detailedCourseData.loading}
-            className={`px-6 py-3 rounded-lg font-medium text-white
-              ${creatingFolders ? 'bg-gray-400' : 'bg-[var(--glide-blue)] hover:bg-[var(--blue-accent-hover)]'}
-              transition-colors shadow-md flex items-center justify-center`}
-          >
-            {creatingFolders ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Creating Folders...
-              </>
-            ) : (
-              <>
-                <svg className="mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                </svg>
-                Create Semester Folders
-              </>
-            )}
-          </button>
-        </div>
+
       </div>
     </>
   );

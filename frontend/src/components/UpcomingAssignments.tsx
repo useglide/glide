@@ -85,11 +85,11 @@ export function UpcomingAssignments({
   const hasNoAssignments = upcomingAssignments.length === 0;
 
   return (
-    <div className="bg-[var(--white-grey)] p-10 rounded-lg shadow-lg mb-10 h-full flex flex-col">
+    <div className="bg-[var(--white-grey)] p-10 rounded-lg shadow-lg mb-10">
       <h2 className="text-3xl font-bold text-[var(--primary-color)] mb-6">Upcoming Assignments</h2>
 
       {hasNoAssignments ? (
-        <div className="flex flex-col items-center justify-center py-10 text-center flex-grow">
+        <div className="flex flex-col items-center justify-center py-10 text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -99,21 +99,19 @@ export function UpcomingAssignments({
           <p className="text-gray-500 mb-6">You don&apos;t have any upcoming assignments at the moment.</p>
         </div>
       ) : (
-        <>
-          <div className="space-y-4 flex-grow overflow-auto">
-            {/* Assignment items */}
-            {upcomingAssignments.map((assignment: Assignment) => (
-              <AssignmentItem key={assignment.id} assignment={assignment} />
-            ))}
-          </div>
-        </>
+        <div className="space-y-4 mb-6">
+          {/* Assignment items */}
+          {upcomingAssignments.map((assignment: Assignment) => (
+            <AssignmentItem key={assignment.id} assignment={assignment} />
+          ))}
+        </div>
       )}
 
-      {/* 1rem padding above the button and 1rem margin from bottom */}
+      {/* View All Assignments button */}
       <div className="pt-4">
         <button
           type="button"
-          className="w-full flex items-center justify-center py-3 mt-auto px-4 bg-[var(--glide-blue-10)] text-[var(--glide-blue)] rounded-lg transition-colors cursor-pointer font-bold"
+          className="w-full flex items-center justify-center py-3 px-4 bg-[var(--glide-blue-10)] text-[var(--glide-blue)] rounded-lg transition-colors cursor-pointer font-bold"
           onClick={() => window.location.href = '/assignments'}
         >
           View All Assignments

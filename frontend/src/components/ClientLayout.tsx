@@ -1,7 +1,6 @@
 'use client'
 
 import { GlobalCommandMenu } from './GlobalCommandMenu'
-import { Chat } from './chat/Chat'
 import { Sidebar } from './Sidebar'
 import { usePathname } from 'next/navigation'
 
@@ -16,7 +15,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       <>
         {children}
         <GlobalCommandMenu />
-        <Chat />
       </>
     )
   }
@@ -28,7 +26,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         {children}
       </div>
       <GlobalCommandMenu />
-      <Chat />
     </div>
   )
 }

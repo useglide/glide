@@ -273,11 +273,11 @@ function CourseCard({
   onOpenSettings: (course: Course) => void
 }) {
 
+
   // Format the grade to show as a percentage
   const gradePercentage = course.grade !== null && course.grade !== undefined
     ? `${Math.round(course.grade)}%`
     : null;
-
 
 
   // Use custom color if available, otherwise use the default color
@@ -380,7 +380,7 @@ function CourseCard({
       </button>
 
       {/* Top-left corner text (original course name when custom display name exists) */}
-      {topLeftText && (
+      {/* {topLeftText && (
         <div className="absolute top-4 left-4">
           <span
             className={`text-xs font-semibold ${secondaryTextColor}`}
@@ -389,7 +389,7 @@ function CourseCard({
             {topLeftText}
           </span>
         </div>
-      )}
+      )} */}
 
       {/* Centered course name */}
       <div className="flex items-center justify-center h-full">
@@ -401,29 +401,16 @@ function CourseCard({
         </h3>
       </div>
 
-      {/* Bottom section with details and grade */}
-      <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center">
-        {/* View details link */}
-        <div
-          className={`flex items-center text-sm font-medium ${textColor}`}
-          style={{ color: textColorStyle }}
+      {/* Bottom section with grade */}
+      <div className="absolute bottom-4 left-4">
+        <span
+          className="text-xs font-bold"
+          style={{
+            color: textColorStyle === 'white' ? 'white' : textColorStyle,
+          }}
         >
-          <span>View Details</span>
-          <ArrowUpRight className="ml-1 h-4 w-4" />
-        </div>
-
-        {/* Grade percentage */}
-        {gradePercentage && (
-          <div
-            className="px-3 py-1 rounded-md text-sm font-bold"
-            style={{
-              backgroundColor: 'var(--white-grey)',
-              color: textColorStyle === 'white' ? 'black' : textColorStyle,
-            }}
-          >
-            {gradePercentage}
-          </div>
-        )}
+          {gradePercentage || 'No Grade'}
+        </span>
       </div>
     </div>
   );
