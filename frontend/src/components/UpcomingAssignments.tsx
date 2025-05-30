@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { FileIcon } from 'lucide-react';
+import { FileIcon, CheckCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 // Define the assignment interface
 interface Assignment {
@@ -31,6 +32,14 @@ export function UpcomingAssignments({
   assignments = [],
   loading = false
 }: UpcomingAssignmentsProps) {
+  const router = useRouter();
+
+  // Function to handle assignment click
+  const handleAssignmentClick = (assignment: Assignment) => {
+    if (assignment.course_id) {
+      router.push(`/courses/${assignment.course_id}/assignments/${assignment.id}`);
+    }
+  };
 
   // If loading, show skeleton
   if (loading) {
@@ -102,7 +111,11 @@ export function UpcomingAssignments({
         <div className="space-y-4 mb-6">
           {/* Assignment items */}
           {upcomingAssignments.map((assignment: Assignment) => (
-            <AssignmentItem key={assignment.id} assignment={assignment} />
+            <AssignmentItem
+              key={assignment.id}
+              assignment={assignment}
+              onClick={() => handleAssignmentClick(assignment)}
+            />
           ))}
         </div>
       )}
@@ -122,7 +135,7 @@ export function UpcomingAssignments({
 }
 
 // Assignment Item Component
-function AssignmentItem({ assignment }: { assignment: Assignment }) {
+function AssignmentItem({ assignment, onClick }: { assignment: Assignment; onClick: () => void }) {
   // Format the due date
   const dueDate = formatDate(assignment.due_at);
 
@@ -157,13 +170,26 @@ function AssignmentItem({ assignment }: { assignment: Assignment }) {
   }
 
   return (
-    <div className="flex items-center justify-between rounded-lg p-4 hover:bg-[var(--light-grey)] transition-colors cursor-pointer">
+    <div
+      className="flex items-center justify-between rounded-lg p-4 hover:bg-[var(--light-grey)] transition-colors cursor-pointer"
+      onClick={onClick}
+    >
       <div className="flex items-center">
         <div className="w-10 h-10 bg-[var(--glide-blue-20)] rounded-lg flex items-center justify-center mr-4">
           <FileIcon className="h-5 w-5 text-[var(--glide-blue)]" />
         </div>
         <div>
-          <h3 className="font-medium text-[var(--primary-color)]">{assignment.name}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium text-[var(--primary-color)]">{assignment.name}</h3>
+            {assignment.submission?.submitted_at && (
+              <div className="relative group">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
+                  Submitted
+                </div>
+              </div>
+            )}
+          </div>
           <p className="text-sm text-[var(--secondary-color)]">
             {assignment.course_code || assignment.course_name || 'Unknown Course'}
           </p>

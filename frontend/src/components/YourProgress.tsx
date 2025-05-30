@@ -188,12 +188,7 @@ export function YourProgress({
                 </>
               )}
             </div>
-            <button
-              type="button"
-              className="flex items-center justify-center py-2 px-6 bg-blue-100 text-blue-600 rounded-lg transition-colors cursor-pointer text-sm font-medium h-fit"
-            >
-              Details
-            </button>
+
           </div>
         </div>
         {/* Completed Credits Card */}
@@ -212,12 +207,7 @@ export function YourProgress({
                 of {requiredCredits} required
               </div>
             </div>
-            <button
-              type="button"
-              className="flex items-center justify-center py-2 px-6 bg-blue-100 text-blue-600 rounded-lg transition-colors cursor-pointer text-sm font-medium h-fit"
-            >
-              Details
-            </button>
+
           </div>
         </div>
 
@@ -237,12 +227,7 @@ export function YourProgress({
                 {dueThisWeek} due this week
               </div>
             </div>
-            <button
-              type="button"
-              className="flex items-center justify-center py-2 px-6 bg-blue-100 text-blue-600 rounded-lg transition-colors cursor-pointer text-sm font-medium h-fit"
-            >
-              Details
-            </button>
+
           </div>
         </div>
       </div>

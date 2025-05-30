@@ -10,9 +10,6 @@ export default function StudyCenterPage() {
       <Header title="Study Center" />
       <div className="p-8">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-[var(--primary-color)] mb-8">
-            Study Center
-          </h1>
           <StudyCenterDashboard />
         </div>
       </div>
