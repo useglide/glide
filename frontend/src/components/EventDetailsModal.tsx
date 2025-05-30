@@ -10,11 +10,25 @@ import {
 } from '@/components/ui/dialog';
 import { Calendar, Clock, Palette, FileText, Edit, Trash2, Loader2 } from 'lucide-react';
 
+interface CalendarEvent {
+  id: string;
+  title: string;
+  start: string;
+  end?: string;
+  allDay?: boolean;
+  backgroundColor?: string;
+  extendedProps?: {
+    description?: string;
+    created_at?: Date | { toDate(): Date } | string;
+    updated_at?: Date | { toDate(): Date } | string;
+  };
+}
+
 interface EventDetailsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  event: any;
-  onEdit: (event: any) => void;
+  event: CalendarEvent | null;
+  onEdit: (event: CalendarEvent) => void;
   onDelete: (eventId: string) => Promise<void>;
 }
 
@@ -82,7 +96,7 @@ export default function EventDetailsModal({
 
   const getEventDuration = () => {
     if (!event.start) return '';
-    
+
     if (event.allDay) {
       if (event.end && event.end !== event.start) {
         return `${formatDate(event.start)} - ${formatDate(event.end)}`;
@@ -92,7 +106,7 @@ export default function EventDetailsModal({
       if (event.end) {
         const startDate = new Date(event.start);
         const endDate = new Date(event.end);
-        
+
         if (startDate.toDateString() === endDate.toDateString()) {
           // Same day
           return `${formatDate(event.start)} from ${formatTime(event.start)} to ${formatTime(event.end)}`;
@@ -169,10 +183,15 @@ export default function EventDetailsModal({
               <div>
                 <p className="font-medium text-[var(--primary-color)]">Created</p>
                 <p className="text-[var(--secondary-color)] text-sm">
-                  {event.extendedProps.created_at.toDate ? 
-                    event.extendedProps.created_at.toDate().toLocaleString() :
-                    new Date(event.extendedProps.created_at).toLocaleString()
-                  }
+                  {(() => {
+                    const createdAt = event.extendedProps.created_at;
+                    if (createdAt && typeof createdAt === 'object' && 'toDate' in createdAt) {
+                      return createdAt.toDate().toLocaleString();
+                    } else if (createdAt) {
+                      return new Date(createdAt as string | Date).toLocaleString();
+                    }
+                    return 'Unknown';
+                  })()}
                 </p>
               </div>
             </div>

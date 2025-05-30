@@ -10,11 +10,34 @@ import {
 } from '@/components/ui/dialog';
 import { Calendar, Clock, Palette, FileText, Loader2 } from 'lucide-react';
 
+interface CalendarEvent {
+  id?: string;
+  title: string;
+  start: string;
+  end?: string;
+  allDay?: boolean;
+  backgroundColor?: string;
+  extendedProps?: {
+    description?: string;
+    created_at?: Date | { toDate(): Date } | string;
+    updated_at?: Date | { toDate(): Date } | string;
+  };
+}
+
+interface EventData {
+  title: string;
+  start: string;
+  end?: string;
+  allDay?: boolean;
+  description?: string;
+  color?: string;
+}
+
 interface EventModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (eventData: any) => Promise<void>;
-  initialData?: any;
+  onSave: (eventData: EventData) => Promise<void>;
+  initialData?: CalendarEvent;
   selectedDate?: string;
   mode: 'create' | 'edit';
 }
@@ -56,7 +79,7 @@ export default function EventModal({
         setTitle(initialData.title || '');
         setDescription(initialData.extendedProps?.description || '');
         setColor(initialData.backgroundColor || '#3b82f6');
-        
+
         if (initialData.start) {
           const startDateTime = new Date(initialData.start);
           setStartDate(startDateTime.toISOString().split('T')[0]);
@@ -64,7 +87,7 @@ export default function EventModal({
             setStartTime(startDateTime.toTimeString().slice(0, 5));
           }
         }
-        
+
         if (initialData.end) {
           const endDateTime = new Date(initialData.end);
           setEndDate(endDateTime.toISOString().split('T')[0]);
@@ -72,7 +95,7 @@ export default function EventModal({
             setEndTime(endDateTime.toTimeString().slice(0, 5));
           }
         }
-        
+
         setAllDay(initialData.allDay || false);
       } else if (mode === 'create') {
         // Reset form for new event
@@ -80,7 +103,7 @@ export default function EventModal({
         setDescription('');
         setColor('#3b82f6');
         setAllDay(false);
-        
+
         if (selectedDate) {
           setStartDate(selectedDate);
           setEndDate(selectedDate);
@@ -89,7 +112,7 @@ export default function EventModal({
           setStartDate(today);
           setEndDate(today);
         }
-        
+
         setStartTime('09:00');
         setEndTime('10:00');
       }
@@ -113,7 +136,7 @@ export default function EventModal({
       }
 
       // Create event data
-      const eventData: any = {
+      const eventData: Partial<EventData> = {
         title: title.trim(),
         description: description.trim(),
         color
@@ -140,7 +163,7 @@ export default function EventModal({
         }
       }
 
-      await onSave(eventData);
+      await onSave(eventData as EventData);
       onOpenChange(false);
     } catch (error) {
       console.error('Error saving event:', error);

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserIcon, Sparkles } from 'lucide-react';
 import { ChatPanel } from './chat/ChatPanel';
@@ -23,9 +23,9 @@ export function Header({ title = 'Dashboard', onLogout }: HeaderProps) {
     document.dispatchEvent(event);
   };
 
-  const toggleChat = () => {
+  const toggleChat = useCallback(() => {
     setIsChatOpen(!isChatOpen);
-  };
+  }, [isChatOpen]);
 
   const closeChat = () => {
     setIsChatOpen(false);
@@ -33,7 +33,7 @@ export function Header({ title = 'Dashboard', onLogout }: HeaderProps) {
 
   // Add keyboard shortcut for chat (Cmd+I or Ctrl+I)
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       // Check for Command+I (Mac) or Ctrl+I (Windows)
       if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
         e.preventDefault(); // Prevent browser's default "Inspect" action
@@ -43,7 +43,7 @@ export function Header({ title = 'Dashboard', onLogout }: HeaderProps) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isChatOpen]); // Re-run effect when isChatOpen changes to get the latest toggleChat function
+  }, [isChatOpen, toggleChat]); // Re-run effect when isChatOpen changes to get the latest toggleChat function
 
   return (
     <header className="sticky top-0 z-20 bg-[var(--white-grey)] border-b border-[var(--nav-border)] w-full">
@@ -106,7 +106,7 @@ export function Header({ title = 'Dashboard', onLogout }: HeaderProps) {
       </div>
 
       {/* Chat Panel */}
-      <ChatPanel isOpen={isChatOpen} onClose={closeChat} />
+      <ChatPanel isOpen={isChatOpen} onClose={closeChat} className="" />
     </header>
   );
 }

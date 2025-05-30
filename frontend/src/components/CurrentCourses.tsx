@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PlusIcon, ChevronDownIcon, ChevronUpIcon, Settings, RefreshCw, ArrowUpRight } from 'lucide-react';
+import { PlusIcon, ChevronDownIcon, ChevronUpIcon, Settings, RefreshCw } from 'lucide-react';
 import { CourseSelectionModal } from './CourseSelectionModal';
 import { CourseSettingsModal } from './CourseSettingsModal';
 import { darkenColor, isLightColor } from '@/lib/utils';
@@ -283,12 +283,11 @@ function CourseCard({
   // Use custom color if available, otherwise use the default color
   const cardColor = course.customColor || colorClass;
 
-  // Determine what to show in the top-left corner and center title
+  // Determine what to show in the center title
   // Only treat as "custom" if displayName exists, is not empty, AND is different from the original name
   const hasCustomDisplayName = course.displayName &&
                                course.displayName.trim() !== '' &&
                                course.displayName.trim() !== course.name.trim();
-  const topLeftText = hasCustomDisplayName ? course.name : ''; // Show original name only if custom name exists and differs
   const centerTitle = hasCustomDisplayName ? course.displayName : course.name; // Show custom name or original name
 
   // Determine if the card color is light or dark

@@ -4,6 +4,14 @@ import React, { useState } from 'react';
 import { Upload, Link, FileText, Send, Loader2 } from 'lucide-react';
 import { submitAssignment, uploadSubmissionFile } from '@/services/api';
 
+// Type definition for upload function
+type UploadSubmissionFileFunction = (
+  courseId: number,
+  assignmentId: number,
+  userId: string | number,
+  file: File
+) => Promise<{ upload: { file_id: number } }>;
+
 interface SubmissionFormProps {
   courseId: number;
   assignmentId: number;
@@ -57,7 +65,13 @@ export function SubmissionForm({
     setUploadProgress(0);
 
     try {
-      let submissionData: any = {
+      const submissionData: {
+        submission_type: string;
+        comment?: string;
+        body?: string;
+        url?: string;
+        file_ids?: number[];
+      } = {
         submission_type: submissionType,
         comment: comment || undefined
       };
@@ -88,7 +102,7 @@ export function SubmissionForm({
           setUploadProgress((i / files.length) * 50); // First 50% for uploads
 
           try {
-            const uploadResult = await uploadSubmissionFile(courseId, assignmentId, 'self', file);
+            const uploadResult = await (uploadSubmissionFile as UploadSubmissionFileFunction)(courseId, assignmentId, 'self', file);
             console.log('Upload result:', uploadResult);
 
             // Use the actual file ID from Canvas

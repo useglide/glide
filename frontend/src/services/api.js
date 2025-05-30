@@ -144,17 +144,13 @@ export const ensureUserHasCourses = async () => {
 
 /**
  * Get Google OAuth token from Firebase user
+ * Note: This function should be called from within a React component context
  * @returns {Promise<string>} Google OAuth access token
  */
 export const getGoogleOAuthToken = async () => {
   try {
-    // Import the function dynamically to avoid circular dependencies
-    const { useAuth } = await import('../context/AuthContext');
-    const { getGoogleToken } = useAuth();
-
-    // Get the token from the auth context
-    const tokenData = await getGoogleToken();
-    return tokenData.accessToken;
+    // This function should be used within React components where useAuth is available
+    throw new Error('getGoogleOAuthToken should be called from within a React component context');
   } catch (error) {
     console.error('Failed to get Google OAuth token:', error);
     throw error;
@@ -527,47 +523,8 @@ export const updateFavoriteCourseColor = async (courseId, color) => {
 };
 
 // ===== LECTURE NOTES API =====
-
-/**
- * Get the lecture notes API URL
- * @returns {string} The lecture notes API URL
- */
-const getLectureNotesApiUrl = () => {
-  const GENOA_API_URL = process.env.NEXT_PUBLIC_GENOA_API_URL || 'http://localhost:8000/api';
-  return GENOA_API_URL.endsWith('/v1') ? GENOA_API_URL : `${GENOA_API_URL}/v1`;
-};
-
-/**
- * Make an authenticated request to the lecture notes API
- * @param {string} endpoint - The endpoint to call
- * @param {Object} options - Fetch options
- * @returns {Promise<Object>} The response data
- */
-const fetchLectureNotesApi = async (endpoint, options = {}) => {
-  try {
-    const token = await getIdToken();
-    const baseUrl = getLectureNotesApiUrl();
-    const url = joinUrl(baseUrl, `lecture-notes/${endpoint}`);
-
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...options.headers,
-        'Authorization': `Bearer ${token}`
-      }
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || errorData.error || `API error: ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Lecture notes API request failed:', error);
-    throw error;
-  }
-};
+// Note: Lecture notes API functions were removed as they were unused
+// If needed in the future, they can be re-added with proper usage
 
 /**
  * Update a favorite course's display name
@@ -719,7 +676,7 @@ export const uploadSubmissionFile = async (courseId, assignmentId, userId, file)
  * Get detailed submission information including attachments
  * @param {number} courseId - Course ID
  * @param {number} assignmentId - Assignment ID
- * @param {number} userId - User ID (defaults to 'self')
+ * @param {string|number} userId - User ID (defaults to 'self')
  * @returns {Promise<Object>} Detailed submission information
  */
 export const getSubmissionDetails = async (courseId, assignmentId, userId = 'self') => {
@@ -758,7 +715,7 @@ export const getSubmissionDetails = async (courseId, assignmentId, userId = 'sel
  * Download a submitted file
  * @param {number} courseId - Course ID
  * @param {number} assignmentId - Assignment ID
- * @param {number} userId - User ID (defaults to 'self')
+ * @param {string|number} userId - User ID (defaults to 'self')
  * @param {number} fileId - File ID
  * @returns {Promise<Blob>} File blob for download
  */

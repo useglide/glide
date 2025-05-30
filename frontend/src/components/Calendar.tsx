@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -11,22 +11,70 @@ import EventModal from './EventModal';
 import EventDetailsModal from './EventDetailsModal';
 import { Plus, Loader2, AlertCircle } from 'lucide-react';
 
+// Define Auth context interface
+interface AuthContextType {
+  user: {
+    uid: string;
+    email: string;
+    displayName?: string;
+  } | null;
+  logout?: () => Promise<void>;
+}
+
+interface CalendarEvent {
+  id: string;
+  title: string;
+  start: string;
+  end?: string;
+  allDay?: boolean;
+  backgroundColor?: string;
+  extendedProps?: {
+    description?: string;
+    created_at?: Date | { toDate(): Date } | string;
+    updated_at?: Date | { toDate(): Date } | string;
+  };
+}
+
 interface CalendarProps {
   className?: string;
 }
 
 export default function Calendar({ className = '' }: CalendarProps) {
-  const { user } = useAuth();
-  const [events, setEvents] = useState<any[]>([]);
+  const { user } = useAuth() as AuthContextType;
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   // Modal states
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [eventDetailsModalOpen, setEventDetailsModalOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+
+  const loadEvents = useCallback(async () => {
+    if (!user?.uid) return;
+
+    try {
+      setLoading(true);
+      setError('');
+      const userEvents = await eventService.getUserEvents(user.uid);
+      const formattedEvents = userEvents.map(event =>
+        eventService.formatEventForCalendar(event)
+      ) as CalendarEvent[];
+      setEvents(formattedEvents);
+    } catch (error: unknown) {
+      console.error('Error loading events:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMessage.includes('Permission denied')) {
+        setError('Permission denied. Please set up Firestore security rules for calendar_events collection.');
+      } else {
+        setError('Failed to load events: ' + errorMessage);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.uid]);
 
   // Load events when component mounts or user changes
   useEffect(() => {
@@ -36,7 +84,7 @@ export default function Calendar({ className = '' }: CalendarProps) {
       // Subscribe to real-time updates
       const unsubscribe = eventService.subscribeToUserEvents(
         user.uid,
-        (updatedEvents, error) => {
+        (updatedEvents: Record<string, unknown>[], error?: { code?: string; message?: string }) => {
           if (error) {
             console.error('Error in events subscription:', error);
             if (error.code === 'permission-denied') {
@@ -47,7 +95,7 @@ export default function Calendar({ className = '' }: CalendarProps) {
           } else {
             const formattedEvents = updatedEvents.map(event =>
               eventService.formatEventForCalendar(event)
-            );
+            ) as CalendarEvent[];
             setEvents(formattedEvents);
           }
           setLoading(false);
@@ -59,32 +107,34 @@ export default function Calendar({ className = '' }: CalendarProps) {
       setEvents([]);
       setLoading(false);
     }
-  }, [user]);
+  }, [user, loadEvents]);
 
-  const loadEvents = async () => {
-    if (!user?.uid) return;
+  interface DateClickArg {
+    dateStr: string;
+  }
 
-    try {
-      setLoading(true);
-      setError('');
-      const userEvents = await eventService.getUserEvents(user.uid);
-      const formattedEvents = userEvents.map(event =>
-        eventService.formatEventForCalendar(event)
-      );
-      setEvents(formattedEvents);
-    } catch (error) {
-      console.error('Error loading events:', error);
-      if (error.message.includes('Permission denied')) {
-        setError('Permission denied. Please set up Firestore security rules for calendar_events collection.');
-      } else {
-        setError('Failed to load events: ' + error.message);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  interface EventClickArg {
+    event: {
+      id: string;
+      title: string;
+      start: Date | null;
+      end?: Date | null;
+      allDay?: boolean;
+      backgroundColor?: string;
+      extendedProps?: Record<string, unknown>;
+    };
+  }
 
-  const handleDateClick = (arg: any) => {
+  interface EventData {
+    title: string;
+    start: string;
+    end?: string;
+    allDay?: boolean;
+    description?: string;
+    backgroundColor?: string;
+  }
+
+  const handleDateClick = (arg: DateClickArg) => {
     if (!user) {
       alert('Please log in to create events');
       return;
@@ -96,12 +146,22 @@ export default function Calendar({ className = '' }: CalendarProps) {
     setEventModalOpen(true);
   };
 
-  const handleEventClick = (arg: any) => {
-    setSelectedEvent(arg.event);
+  const handleEventClick = (arg: EventClickArg) => {
+    // Convert FullCalendar event to our CalendarEvent format
+    const calendarEvent: CalendarEvent = {
+      id: arg.event.id,
+      title: arg.event.title,
+      start: arg.event.start ? arg.event.start.toISOString() : '',
+      end: arg.event.end ? arg.event.end.toISOString() : undefined,
+      allDay: arg.event.allDay,
+      backgroundColor: arg.event.backgroundColor,
+      extendedProps: arg.event.extendedProps as CalendarEvent['extendedProps']
+    };
+    setSelectedEvent(calendarEvent);
     setEventDetailsModalOpen(true);
   };
 
-  const handleCreateEvent = async (eventData: any) => {
+  const handleCreateEvent = async (eventData: EventData) => {
     if (!user?.uid) {
       throw new Error('User not authenticated');
     }
@@ -115,13 +175,13 @@ export default function Calendar({ className = '' }: CalendarProps) {
     }
   };
 
-  const handleEditEvent = (event: any) => {
+  const handleEditEvent = (event: CalendarEvent) => {
     setSelectedEvent(event);
     setModalMode('edit');
     setEventModalOpen(true);
   };
 
-  const handleUpdateEvent = async (eventData: any) => {
+  const handleUpdateEvent = async (eventData: EventData) => {
     if (!user?.uid || !selectedEvent?.id) {
       throw new Error('User not authenticated or event not selected');
     }
@@ -149,7 +209,7 @@ export default function Calendar({ className = '' }: CalendarProps) {
     }
   };
 
-  const handleEventSave = async (eventData: any) => {
+  const handleEventSave = async (eventData: EventData) => {
     if (modalMode === 'create') {
       await handleCreateEvent(eventData);
     } else {
@@ -332,7 +392,7 @@ export default function Calendar({ className = '' }: CalendarProps) {
         open={eventModalOpen}
         onOpenChange={setEventModalOpen}
         onSave={handleEventSave}
-        initialData={selectedEvent}
+        initialData={selectedEvent || undefined}
         selectedDate={selectedDate}
         mode={modalMode}
       />

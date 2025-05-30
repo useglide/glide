@@ -105,7 +105,7 @@ export function YourProgress({
   console.log('YourProgress - Final GPA display:', { calculatedGPA, providedGPA, currentGPA });
 
   // Calculate GPA change (only if both current and previous GPA exist)
-  const gpaChange = currentGPA !== null && previousGPA !== null && previousGPA !== undefined
+  const gpaChange = currentGPA !== null && currentGPA !== undefined && previousGPA !== null && previousGPA !== undefined
     ? currentGPA - previousGPA
     : null;
 

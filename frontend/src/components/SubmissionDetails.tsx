@@ -4,6 +4,20 @@ import React, { useState, useEffect } from 'react';
 import { Download, FileText, Link as LinkIcon, MessageSquare, Calendar, Loader2 } from 'lucide-react';
 import { getSubmissionDetails, downloadSubmissionFile } from '@/services/api';
 
+// Type definitions for API functions
+type GetSubmissionDetailsFunction = (
+  courseId: number,
+  assignmentId: number,
+  userId?: string | number
+) => Promise<{ status: string; submission?: SubmissionDetails }>;
+
+type DownloadSubmissionFileFunction = (
+  courseId: number,
+  assignmentId: number,
+  userId: string | number,
+  fileId: number
+) => Promise<Blob>;
+
 // Define interfaces for submission data
 interface SubmissionAttachment {
   id: number;
@@ -40,7 +54,7 @@ interface SubmissionDetails {
 interface SubmissionDetailsProps {
   courseId: number;
   assignmentId: number;
-  userId?: string;
+  userId?: string | number;
   onError?: (error: string) => void;
 }
 
@@ -53,7 +67,7 @@ export function SubmissionDetails({ courseId, assignmentId, userId = 'self', onE
     const fetchSubmissionDetails = async () => {
       try {
         setLoading(true);
-        const response = await getSubmissionDetails(courseId, assignmentId, userId);
+        const response = await (getSubmissionDetails as GetSubmissionDetailsFunction)(courseId, assignmentId, userId);
 
         console.log('Submission details response:', response);
 
@@ -81,7 +95,7 @@ export function SubmissionDetails({ courseId, assignmentId, userId = 'self', onE
       console.log('Starting download for file:', { fileId, filename, courseId, assignmentId, userId });
       setDownloadingFiles(prev => new Set(prev).add(fileId));
 
-      const blob = await downloadSubmissionFile(courseId, assignmentId, userId, fileId);
+      const blob = await (downloadSubmissionFile as DownloadSubmissionFileFunction)(courseId, assignmentId, userId, fileId);
       console.log('Download successful, blob size:', blob.size);
 
       // Create download link

@@ -50,13 +50,12 @@ const SidebarItem = ({ href, icon, label, isActive }: SidebarItemProps) => {
 };
 
 const CollapsibleSidebarItem = ({
-  icon,
   label,
   isExpanded,
   onToggle,
   children,
   hasActiveChild
-}: CollapsibleSidebarItemProps) => {
+}: Omit<CollapsibleSidebarItemProps, 'icon'>) => {
   return (
     <div>
       <button
@@ -167,7 +166,6 @@ export function Sidebar() {
 
           {/* More collapsible section */}
           <CollapsibleSidebarItem
-            icon={null}
             label="More"
             isExpanded={isMoreExpanded}
             onToggle={toggleMore}
