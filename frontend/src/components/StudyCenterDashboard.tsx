@@ -11,8 +11,7 @@ import {
   FolderOpen,
   BookOpen,
   Microscope,
-  GraduationCap,
-  RefreshCw
+  GraduationCap
 } from 'lucide-react';
 
 interface WidgetCardProps {
@@ -122,12 +121,12 @@ export function StudyCenterDashboard() {
 
   const studyToolsWidgets = [
     {
-      title: 'Graphing Calculator',
-      description: 'Advanced mathematical calculations and graphing capabilities for STEM courses.',
-      icon: <Calculator className="w-6 h-6" />,
-      iconBgColor: '#e3f2fd',
-      iconColor: '#1565c0',
-      onClick: () => router.push('/study-center/graphing-calculator')
+      title: 'Study Techniques',
+      description: 'Explore research-backed study methods including Pomodoro, Active Recall, Spaced Repetition, and more.',
+      icon: <GraduationCap className="w-6 h-6" />,
+      iconBgColor: '#e8eaf6',
+      iconColor: '#5e35b1',
+      onClick: () => router.push('/study-center/study-techniques')
     },
     {
       title: 'Lecture Summarizer',
@@ -152,6 +151,14 @@ export function StudyCenterDashboard() {
       iconBgColor: '#e8f5e8',
       iconColor: '#388e3c',
       onClick: () => router.push('/study-center/study-guide-maker')
+    },
+    {
+      title: 'Graphing Calculator',
+      description: 'Advanced mathematical calculations and graphing capabilities for STEM courses.',
+      icon: <Calculator className="w-6 h-6" />,
+      iconBgColor: '#e3f2fd',
+      iconColor: '#1565c0',
+      onClick: () => router.push('/study-center/graphing-calculator')
     }
   ];
 
@@ -163,25 +170,8 @@ export function StudyCenterDashboard() {
       iconBgColor: '#f1f8e9',
       iconColor: '#689f38',
       onClick: () => router.push('/study-center/past-notes-viewer')
-    },
-    {
-      title: 'Deep Study',
-      description: 'Intensive study sessions with AI-guided learning paths and progress tracking.',
-      icon: <GraduationCap className="w-6 h-6" />,
-      iconBgColor: '#e8eaf6',
-      iconColor: '#5e35b1',
-      onClick: () => router.push('/study-center/deep-study')
-    },
-    {
-      title: 'Refresh Study',
-      description: 'Quick review sessions to reinforce previously learned material and maintain knowledge.',
-      icon: <RefreshCw className="w-6 h-6" />,
-      iconBgColor: '#e0f7fa',
-      iconColor: '#00acc1',
-      onClick: () => router.push('/study-center/refresh-study')
     }
   ];
-
   return (
     <div className="space-y-8">
       <CategorySection
@@ -195,7 +185,6 @@ export function StudyCenterDashboard() {
         description="Interactive tools to enhance your learning and comprehension"
         widgets={studyToolsWidgets}
       />
-
       <CategorySection
         title="Content Management"
         description="Organize and review your academic materials efficiently"

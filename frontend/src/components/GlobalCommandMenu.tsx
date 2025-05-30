@@ -65,8 +65,19 @@ export function GlobalCommandMenu() {
     { label: 'Flashcard Maker', path: '/study-center/flashcard-maker' },
     { label: 'Study Guide Maker', path: '/study-center/study-guide-maker' },
     { label: 'Past Notes Viewer', path: '/study-center/past-notes-viewer' },
+  ]
+
+  // Define study techniques items
+  const studyTechniquesItems = [
+    { label: 'Study Techniques', path: '/study-center/study-techniques' },
+    { label: 'Pomodoro Technique', path: '/study-center/study-techniques/pomodoro' },
+    { label: 'Active Recall', path: '/study-center/study-techniques/active-recall' },
+    { label: 'Spaced Repetition', path: '/study-center/study-techniques/spaced-repetition' },
     { label: 'Deep Study', path: '/study-center/deep-study' },
     { label: 'Refresh Study', path: '/study-center/refresh-study' },
+    { label: 'Feynman Technique', path: '/study-center/study-techniques/feynman' },
+    { label: 'Mind Mapping', path: '/study-center/study-techniques/mind-mapping' },
+    { label: 'Time Blocking', path: '/study-center/study-techniques/time-blocking' },
   ]
 
   return (
@@ -87,6 +98,13 @@ export function GlobalCommandMenu() {
         </CommandGroup>
         <CommandGroup heading="Study Center Tools">
           {(showLimitedResults ? studyCenterItems.slice(0, itemLimit) : studyCenterItems).map((item) => (
+            <CommandItem key={item.path} onSelect={() => runCommand(() => router.push(item.path))}>
+              {item.label}
+            </CommandItem>
+          ))}
+        </CommandGroup>
+        <CommandGroup heading="Study Techniques">
+          {(showLimitedResults ? studyTechniquesItems.slice(0, itemLimit) : studyTechniquesItems).map((item) => (
             <CommandItem key={item.path} onSelect={() => runCommand(() => router.push(item.path))}>
               {item.label}
             </CommandItem>
